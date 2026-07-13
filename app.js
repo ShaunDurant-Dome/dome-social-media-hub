@@ -1115,20 +1115,10 @@ async function renderMediaPresets() {
       
       thumb.innerHTML = `
         <img src="${preset.url}" alt="${preset.label || 'Custom'}">
-        <button class="delete-preset-btn" data-id="${preset.id}" style="position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(239,68,68,0.9); border:none; color:#fff; font-size:0.6rem; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity 0.2s; font-weight:bold; z-index:5;">✕</button>
+        <button class="delete-preset-btn" data-id="${preset.id}" style="position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(239,68,68,0.9); border:none; color:#fff; font-size:0.6rem; display:flex; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; z-index:5; box-shadow: 0 1px 4px rgba(0,0,0,0.5);">✕</button>
       `;
       
       thumb.addEventListener('click', () => selectMediaPreset(preset.url, thumb));
-      
-      thumb.addEventListener('mouseenter', () => {
-        const btn = thumb.querySelector('.delete-preset-btn');
-        if (btn) btn.style.opacity = '1';
-      });
-      
-      thumb.addEventListener('mouseleave', () => {
-        const btn = thumb.querySelector('.delete-preset-btn');
-        if (btn) btn.style.opacity = '0';
-      });
       
       const delBtn = thumb.querySelector('.delete-preset-btn');
       delBtn.addEventListener('click', async (e) => {
