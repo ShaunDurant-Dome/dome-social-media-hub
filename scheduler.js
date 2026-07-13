@@ -58,6 +58,67 @@ cron.schedule('* * * * *', async () => {
               }
               
               console.log(`Scheduler: [LIVE SUCCESS] Posted to Facebook! Post ID: ${fbJson.id || fbJson.post_id}`);
+            
+            } else if (platform === 'google') {
+              // Direct HTTP POST to Google Business Profile API
+              let accessToken = tokenInfo.accessToken;
+              
+              // If OAuth credentials are set in environment, exchange refresh token for temporary access token
+              if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+                try {
+                  const oauthRes = await fetch('https://oauth2.googleapis.com/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                      client_id: process.env.GOOGLE_CLIENT_ID,
+                      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                      refresh_token: tokenInfo.accessToken,
+                      grant_type: 'refresh_token'
+                    })
+                  });
+                  const oauthJson = await oauthRes.json();
+                  if (oauthJson.access_token) {
+                    accessToken = oauthJson.access_token;
+                    console.log('Scheduler: Swapped Google Refresh Token for active Access Token.');
+                  }
+                } catch (e) {
+                  console.error('Scheduler: Google Token Refresh failed, attempting direct authentication:', e.message);
+                }
+              }
+              
+              // Google Local Posts endpoint
+              // Handle format expected: accounts/{accountId}/locations/{locationId}
+              const locationPath = tokenInfo.handle.startsWith('accounts/') ? tokenInfo.handle : `accounts/self/locations/${tokenInfo.handle}`;
+              const url = `https://mybusiness.googleapis.com/v4/${locationPath}/localPosts`;
+              
+              const body = {
+                summary: post.content,
+                topicType: 'STANDARD'
+              };
+              
+              if (post.mediaUrl) {
+                body.media = [{
+                  mediaFormat: 'PHOTO',
+                  sourceUrl: post.mediaUrl
+                }];
+              }
+              
+              const googleRes = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify(body)
+              });
+              
+              const googleJson = await googleRes.json();
+              if (!googleRes.ok) {
+                throw new Error(googleJson.error?.message || 'Google My Business API returned error status');
+              }
+              
+              console.log(`Scheduler: [LIVE SUCCESS] Posted to Google Business Profile! Post ID: ${googleJson.name}`);
+            
             } else {
               console.log(`Scheduler: Live posting not yet mapped for platform ${platform}. Simulating success.`);
             }
