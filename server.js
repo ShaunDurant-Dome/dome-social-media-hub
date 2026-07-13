@@ -295,7 +295,8 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Missing userToken parameter' });
   }
   try {
-    const accRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+    // 1. Fetch Google Business Profile accounts using new v1 Account Management API
+    const accRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
       headers: { 'Authorization': `Bearer ${userToken}` }
     });
     
@@ -304,7 +305,7 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
     if (contentType.includes('application/json')) {
       accJson = await accRes.json();
     } else {
-      throw new Error(`Google returned a non-JSON error (HTTP ${accRes.status}). Please check that the 'My Business Business Information API' is enabled in your Google Cloud Developer Console.`);
+      throw new Error(`Google Account Management API returned a non-JSON error (HTTP ${accRes.status}). Make sure the 'My Business Account Management API' is enabled in your Google Cloud Developer Console.`);
     }
     
     if (!accRes.ok) {
@@ -313,7 +314,8 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
     
     const locations = [];
     for (const acc of accJson.accounts || []) {
-      const locRes = await fetch(`https://mybusiness.googleapis.com/v4/${acc.name}/locations`, {
+      // 2. Fetch locations using new v1 Business Information API (requires readMask parameter)
+      const locRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title`, {
         headers: { 'Authorization': `Bearer ${userToken}` }
       });
       
@@ -323,9 +325,9 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
         if (locRes.ok && locJson.locations) {
           for (const loc of locJson.locations) {
             locations.push({
-              name: loc.locationName,
+              name: loc.title || 'Unnamed Location',
               id: loc.name.split('/').pop(),
-              handle: loc.name
+              handle: loc.name // format: locations/{locationId}
             });
           }
         }
