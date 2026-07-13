@@ -30,16 +30,6 @@ let state = {
   users: []
 };
 
-// Preset images for media gallery
-const MEDIA_PRESETS = [
-  { id: 'img-1', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80', label: 'Event' },
-  { id: 'img-2', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80', label: 'Dining' },
-  { id: 'img-3', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=80', label: 'Fitness' },
-  { id: 'img-4', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&auto=format&fit=crop&q=80', label: 'Office' },
-  { id: 'img-5', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800&auto=format&fit=crop&q=80', label: 'Bar' },
-  { id: 'img-6', url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80', label: 'Concert' }
-];
-
 // --- API WRAPPER CLIENT ---
 async function request(url, method = 'GET', data = null) {
   try {
@@ -127,17 +117,7 @@ function initUI() {
   });
 
   // Render presets gallery
-  const gallery = document.getElementById('mediaPresetGallery');
-  gallery.innerHTML = '';
-  
-  MEDIA_PRESETS.forEach(preset => {
-    const thumb = document.createElement('div');
-    thumb.className = 'media-thumb';
-    thumb.setAttribute('data-url', preset.url);
-    thumb.innerHTML = `<img src="${preset.url}" alt="${preset.label}">`;
-    thumb.addEventListener('click', () => selectMediaPreset(preset.url, thumb));
-    gallery.appendChild(thumb);
-  });
+  renderMediaPresets();
 
   // Default dates in composer
   const tomorrow = new Date();
@@ -1058,6 +1038,22 @@ function setupEventListeners() {
   document.getElementById('btnSyncFB').addEventListener('click', () => triggerBulkSync('facebook'));
   document.getElementById('btnSyncGoogle').addEventListener('click', () => triggerBulkSync('google'));
   document.getElementById('btnSaveBulkSync').addEventListener('click', saveBulkSyncMappings);
+
+  // Add preset gallery image listener
+  document.getElementById('btnAddPreset').addEventListener('click', async () => {
+    const input = document.getElementById('addPresetUrl');
+    const url = input.value.trim();
+    if (!url) {
+      showToast('Please paste an image URL first!', 'error');
+      return;
+    }
+    try {
+      await request('/api/gallery', 'POST', { url, label: 'Custom' });
+      input.value = '';
+      showToast('Custom image added to presets!', 'success');
+      await renderMediaPresets();
+    } catch(err) {}
+  });
 }
 
 // --- TOAST NOTIFICATIONS ---
@@ -1102,6 +1098,55 @@ function startWebSchedulerPolling() {
       }
     }
   }, 30000);
+}
+
+async function renderMediaPresets() {
+  const gallery = document.getElementById('mediaPresetGallery');
+  if (!gallery) return;
+  gallery.innerHTML = '';
+  
+  try {
+    const presets = await request('/api/gallery');
+    presets.forEach(preset => {
+      const thumb = document.createElement('div');
+      thumb.className = 'media-thumb';
+      thumb.style.position = 'relative';
+      thumb.setAttribute('data-url', preset.url);
+      
+      thumb.innerHTML = `
+        <img src="${preset.url}" alt="${preset.label || 'Custom'}">
+        <button class="delete-preset-btn" data-id="${preset.id}" style="position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(239,68,68,0.9); border:none; color:#fff; font-size:0.6rem; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity 0.2s; font-weight:bold; z-index:5;">✕</button>
+      `;
+      
+      thumb.addEventListener('click', () => selectMediaPreset(preset.url, thumb));
+      
+      thumb.addEventListener('mouseenter', () => {
+        const btn = thumb.querySelector('.delete-preset-btn');
+        if (btn) btn.style.opacity = '1';
+      });
+      
+      thumb.addEventListener('mouseleave', () => {
+        const btn = thumb.querySelector('.delete-preset-btn');
+        if (btn) btn.style.opacity = '0';
+      });
+      
+      const delBtn = thumb.querySelector('.delete-preset-btn');
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('Delete this image from presets?')) {
+          try {
+            await request(`/api/gallery/${preset.id}`, 'DELETE');
+            showToast('Preset image deleted.', 'success');
+            await renderMediaPresets();
+          } catch(err) {}
+        }
+      });
+      
+      gallery.appendChild(thumb);
+    });
+  } catch (err) {
+    console.error('Failed to load presets:', err);
+  }
 }
 
 // --- BULK CHANNELS AUTO-SYNC WORKFLOW ---

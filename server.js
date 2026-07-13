@@ -19,7 +19,10 @@ import {
   getPosts, 
   savePost, 
   updatePost, 
-  deletePost 
+  deletePost,
+  getGalleryPresets,
+  addGalleryPreset,
+  deleteGalleryPreset
 } from './db.js';
 
 import { DEPARTMENTS, ANALYTICS_DATA } from './mockData.js';
@@ -352,6 +355,41 @@ app.post('/api/sync/save', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Bulk mappings applied successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Gallery Presets
+app.get('/api/gallery', authenticateToken, async (req, res) => {
+  try {
+    const presets = await getGalleryPresets();
+    res.json(presets);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch gallery presets' });
+  }
+});
+
+// Add Gallery Preset
+app.post('/api/gallery', authenticateToken, async (req, res) => {
+  const { url, label } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'Missing url parameter' });
+  }
+  try {
+    const newPreset = await addGalleryPreset(url, label || 'Custom');
+    res.json(newPreset);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add gallery preset' });
+  }
+});
+
+// Delete Gallery Preset
+app.delete('/api/gallery/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await deleteGalleryPreset(id);
+    res.json({ success: true, message: 'Gallery preset deleted' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete gallery preset' });
   }
 });
 

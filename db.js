@@ -28,6 +28,16 @@ const dataDir = fs.existsSync('/data') ? '/data' : process.cwd();
 const USERS_FILE = path.join(dataDir, 'db_users.json');
 const ACCOUNTS_FILE = path.join(dataDir, 'db_accounts.json');
 const POSTS_FILE = path.join(dataDir, 'db_posts.json');
+const GALLERY_FILE = path.join(dataDir, 'db_gallery.json');
+
+const DEFAULT_GALLERY = [
+  { id: 'preset-1', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80', label: 'Event' },
+  { id: 'preset-2', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80', label: 'Dining' },
+  { id: 'preset-3', url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=80', label: 'Fitness' },
+  { id: 'preset-4', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&auto=format&fit=crop&q=80', label: 'Office' },
+  { id: 'preset-5', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800&auto=format&fit=crop&q=80', label: 'Bar' },
+  { id: 'preset-6', url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80', label: 'Concert' }
+];
 
 // Default initial users
 const DEFAULT_USERS = [
@@ -84,6 +94,15 @@ export async function initDb() {
         );
       `);
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS gallery_presets (
+          id VARCHAR(50) PRIMARY KEY,
+          url TEXT NOT NULL,
+          label VARCHAR(100),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
       // 2. Seed tables if empty
       const usersCount = await pool.query('SELECT COUNT(*) FROM users');
       if (parseInt(usersCount.rows[0].count) === 0) {
@@ -120,6 +139,17 @@ export async function initDb() {
           );
         }
       }
+
+      const galleryCount = await pool.query('SELECT COUNT(*) FROM gallery_presets');
+      if (parseInt(galleryCount.rows[0].count) === 0) {
+        console.log('DB: Seeding default gallery presets...');
+        for (const p of DEFAULT_GALLERY) {
+          await pool.query(
+            'INSERT INTO gallery_presets (id, url, label) VALUES ($1, $2, $3)',
+            [p.id, p.url, p.label]
+          );
+        }
+      }
       console.log('DB: PostgreSQL initialization complete.');
     } catch (err) {
       console.error('DB Init Error:', err);
@@ -148,6 +178,10 @@ export async function initDb() {
           console.log(`DB: Cleared ${originalLength - posts.length} mockup posts from local file.`);
         }
       } catch (e) {}
+    }
+    if (!fs.existsSync(GALLERY_FILE)) {
+      fs.writeFileSync(GALLERY_FILE, JSON.stringify(DEFAULT_GALLERY, null, 2));
+      console.log('DB: Created local db_gallery.json');
     }
   }
 }
@@ -405,4 +439,43 @@ export async function getAccountTokensForDept(deptId) {
         handle: a.handle
       }));
   }
+}
+
+// --- GALLERY OPERATIONS ---
+export async function getGalleryPresets() {
+  if (isPostgres) {
+    const res = await pool.query('SELECT id, url, label FROM gallery_presets ORDER BY created_at ASC');
+    return res.rows;
+  } else {
+    if (!fs.existsSync(GALLERY_FILE)) {
+      fs.writeFileSync(GALLERY_FILE, JSON.stringify(DEFAULT_GALLERY, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(GALLERY_FILE, 'utf8'));
+  }
+}
+
+export async function addGalleryPreset(url, label) {
+  const id = `preset-${Date.now()}`;
+  if (isPostgres) {
+    await pool.query(
+      'INSERT INTO gallery_presets (id, url, label) VALUES ($1, $2, $3)',
+      [id, url, label]
+    );
+  } else {
+    const gallery = JSON.parse(fs.readFileSync(GALLERY_FILE, 'utf8'));
+    gallery.push({ id, url, label });
+    fs.writeFileSync(GALLERY_FILE, JSON.stringify(gallery, null, 2));
+  }
+  return { id, url, label };
+}
+
+export async function deleteGalleryPreset(id) {
+  if (isPostgres) {
+    await pool.query('DELETE FROM gallery_presets WHERE id = $1', [id]);
+  } else {
+    let gallery = JSON.parse(fs.readFileSync(GALLERY_FILE, 'utf8'));
+    gallery = gallery.filter(g => g.id !== id);
+    fs.writeFileSync(GALLERY_FILE, JSON.stringify(gallery, null, 2));
+  }
+  return { success: true };
 }
