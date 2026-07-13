@@ -207,21 +207,25 @@ app.get('/api/departments', authenticateToken, (req, res) => {
   res.json(filtered);
 });
 
-// Fetch Accounts for Active Department
+// Fetch Accounts
 app.get('/api/accounts', authenticateToken, async (req, res) => {
   const { departmentId } = req.query;
-  if (!departmentId) {
-    return res.status(400).json({ error: 'Missing departmentId query parameter' });
-  }
-
-  // Permission Check
-  if (!req.user.allowedDepts.includes(departmentId)) {
-    return res.status(403).json({ error: 'Access Denied: Unauthorized department workspace' });
-  }
-
   try {
-    const accounts = await getAccounts(departmentId);
-    res.json(accounts);
+    if (departmentId) {
+      if (!req.user.allowedDepts.includes(departmentId)) {
+        return res.status(403).json({ error: 'Access Denied: Unauthorized department workspace' });
+      }
+      const accounts = await getAccounts(departmentId);
+      return res.json(accounts);
+    }
+    
+    // Return all accounts if admin, or filter by allowed departments
+    const allAccounts = await getAccounts();
+    if (req.user.role === 'admin') {
+      res.json(allAccounts);
+    } else {
+      res.json(allAccounts.filter(a => req.user.allowedDepts.includes(a.departmentId)));
+    }
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch social accounts' });
   }
@@ -251,6 +255,89 @@ app.post('/api/accounts/:id/disconnect', authenticateToken, async (req, res) => 
     res.json({ success: true, message: 'API connection revoked' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to disconnect account' });
+  }
+});
+
+// Bulk Sync Meta Pages & Instagram
+app.post('/api/sync/facebook', authenticateToken, async (req, res) => {
+  const { userToken } = req.body;
+  if (!userToken) {
+    return res.status(400).json({ error: 'Missing userToken parameter' });
+  }
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=name,id,access_token,instagram_business_account{id,username,name}&access_token=${userToken}&limit=100`);
+    const metaJson = await metaRes.json();
+    if (!metaRes.ok) {
+      throw new Error(metaJson.error?.message || 'Meta API returned error status');
+    }
+    
+    const pages = (metaJson.data || []).map(page => ({
+      name: page.name,
+      id: page.id,
+      accessToken: page.access_token,
+      instagram: page.instagram_business_account ? {
+        id: page.instagram_business_account.id,
+        username: page.instagram_business_account.username,
+        name: page.instagram_business_account.name
+      } : null
+    }));
+    
+    res.json({ pages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk Sync Google Business Profiles
+app.post('/api/sync/google', authenticateToken, async (req, res) => {
+  const { userToken } = req.body;
+  if (!userToken) {
+    return res.status(400).json({ error: 'Missing userToken parameter' });
+  }
+  try {
+    const accRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
+      headers: { 'Authorization': `Bearer ${userToken}` }
+    });
+    const accJson = await accRes.json();
+    if (!accRes.ok) {
+      throw new Error(accJson.error?.message || 'Failed to fetch Google accounts');
+    }
+    
+    const locations = [];
+    for (const acc of accJson.accounts || []) {
+      const locRes = await fetch(`https://mybusiness.googleapis.com/v4/${acc.name}/locations`, {
+        headers: { 'Authorization': `Bearer ${userToken}` }
+      });
+      const locJson = await locRes.json();
+      if (locRes.ok && locJson.locations) {
+        for (const loc of locJson.locations) {
+          locations.push({
+            name: loc.locationName,
+            id: loc.name.split('/').pop(),
+            handle: loc.name
+          });
+        }
+      }
+    }
+    res.json({ locations });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save Bulk Mappings
+app.post('/api/sync/save', authenticateToken, async (req, res) => {
+  const { mappings } = req.body;
+  if (!Array.isArray(mappings)) {
+    return res.status(400).json({ error: 'Mappings must be an array' });
+  }
+  try {
+    for (const m of mappings) {
+      await updateAccountConnection(m.id, true, m.accessToken, m.name, m.handle);
+    }
+    res.json({ success: true, message: 'Bulk mappings applied successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

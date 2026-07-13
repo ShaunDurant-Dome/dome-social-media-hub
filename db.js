@@ -210,9 +210,15 @@ export async function deleteUser(username) {
 
 // --- SOCIAL ACCOUNTS OPERATIONS ---
 
-export async function getAccounts(departmentId) {
+export async function getAccounts(departmentId = null) {
   if (isPostgres) {
-    const res = await pool.query('SELECT id, department_id, platform, name, handle, avatar, connected FROM social_accounts WHERE department_id = $1', [departmentId]);
+    let query = 'SELECT id, department_id, platform, name, handle, avatar, connected FROM social_accounts';
+    const params = [];
+    if (departmentId) {
+      query += ' WHERE department_id = $1';
+      params.push(departmentId);
+    }
+    const res = await pool.query(query, params);
     return res.rows.map(row => ({
       id: row.id,
       departmentId: row.department_id,
@@ -224,7 +230,10 @@ export async function getAccounts(departmentId) {
     }));
   } else {
     const accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
-    return accounts.filter(a => a.departmentId === departmentId);
+    if (departmentId) {
+      return accounts.filter(a => a.departmentId === departmentId);
+    }
+    return accounts;
   }
 }
 

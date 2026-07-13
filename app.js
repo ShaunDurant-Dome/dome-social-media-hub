@@ -1053,6 +1053,11 @@ function setupEventListeners() {
   // Tab toggles inside oauth modal
   document.getElementById('tabSimulateBtn').addEventListener('click', () => toggleOAuthTab('simulate'));
   document.getElementById('tabLiveBtn').addEventListener('click', () => toggleOAuthTab('live'));
+
+  // Bulk Channel Sync bindings
+  document.getElementById('btnSyncFB').addEventListener('click', () => triggerBulkSync('facebook'));
+  document.getElementById('btnSyncGoogle').addEventListener('click', () => triggerBulkSync('google'));
+  document.getElementById('btnSaveBulkSync').addEventListener('click', saveBulkSyncMappings);
 }
 
 // --- TOAST NOTIFICATIONS ---
@@ -1097,4 +1102,178 @@ function startWebSchedulerPolling() {
       }
     }
   }, 30000);
+}
+
+// --- BULK CHANNELS AUTO-SYNC WORKFLOW ---
+let bulkSyncType = '';
+let bulkSyncItems = [];
+let dbAccounts = [];
+
+async function triggerBulkSync(type) {
+  const tokenInput = document.getElementById('bulkSyncToken');
+  const token = tokenInput.value.trim();
+  
+  if (!token) {
+    showToast('Please paste your user access token first!', 'error');
+    return;
+  }
+  
+  showToast(`Scanning for active ${type === 'facebook' ? 'Meta Pages' : 'Google Locations'}...`, 'success');
+  
+  try {
+    // 1. Fetch all accounts configured in our DB
+    dbAccounts = await request('/api/accounts');
+    
+    // 2. Fetch discovered pages/locations from API
+    let endpoint = type === 'facebook' ? '/api/sync/facebook' : '/api/sync/google';
+    const res = await request(endpoint, 'POST', { userToken: token });
+    
+    bulkSyncType = type;
+    bulkSyncItems = type === 'facebook' ? res.pages : res.locations;
+    
+    if (bulkSyncItems.length === 0) {
+      showToast('No active assets discovered on this account.', 'error');
+      return;
+    }
+    
+    renderBulkSyncMapping(type);
+  } catch (err) {
+    showToast(`Sync failed: ${err.message || 'Check your token'}`, 'error');
+  }
+}
+
+function renderBulkSyncMapping(type) {
+  const wrapper = document.getElementById('bulkSyncResultsWrapper');
+  const title = document.getElementById('bulkSyncTypeTitle');
+  const list = document.getElementById('bulkSyncMappingList');
+  
+  title.textContent = type === 'facebook' ? 'Discovered Meta Pages Mapping' : 'Discovered Google Profiles Mapping';
+  list.innerHTML = '';
+  
+  // Filter DB accounts to match the type platform
+  const targetDbAccounts = dbAccounts.filter(a => {
+    if (type === 'facebook') {
+      return a.platform === 'facebook' || a.platform === 'instagram';
+    }
+    return a.platform === 'google';
+  });
+  
+  if (bulkSyncItems.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:10px;">No assets discovered.</div>';
+    return;
+  }
+  
+  // Create mapping rows for each discovered item
+  bulkSyncItems.forEach((item, index) => {
+    // Attempt auto-matching by comparing names
+    let matchedAccountId = '';
+    const cleanName = item.name.toLowerCase();
+    
+    // Find closest match in our DB channels
+    const bestMatch = targetDbAccounts.find(a => {
+      const dept = state.departments.find(d => d.id === a.departmentId);
+      if (!dept) return false;
+      const deptName = dept.name.toLowerCase();
+      return cleanName.includes(deptName) || deptName.includes(cleanName);
+    });
+    
+    if (bestMatch) {
+      matchedAccountId = bestMatch.id;
+    }
+    
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); padding:8px 12px; border-radius:8px;';
+    
+    let optionsHtml = '<option value="">-- Ignore / Do Not Link --</option>';
+    targetDbAccounts.forEach(a => {
+      const dept = state.departments.find(d => d.id === a.departmentId);
+      const labelName = dept ? `${dept.name} (${a.platform.toUpperCase()})` : `${a.departmentId} (${a.platform.toUpperCase()})`;
+      const selected = a.id === matchedAccountId ? 'selected' : '';
+      optionsHtml += `<option value="${a.id}" ${selected}>${labelName}</option>`;
+    });
+    
+    let instagramMatchHtml = '';
+    if (type === 'facebook' && item.instagram) {
+      instagramMatchHtml = `
+        <div style="font-size:0.68rem; color:var(--orange); margin-top:2px;">
+          📸 Linked Instagram: <strong>${item.instagram.username}</strong>
+        </div>
+      `;
+    }
+    
+    row.innerHTML = `
+      <div style="display:flex; flex-direction:column; max-width:55%;">
+        <span style="font-size:0.8rem; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</span>
+        <span style="font-size:0.68rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis;">ID: ${item.id}</span>
+        ${instagramMatchHtml}
+      </div>
+      
+      <select class="bulk-sync-select" data-index="${index}" style="background:rgba(0,0,0,0.4); color:#fff; border:1px solid var(--glass-border); padding:6px; border-radius:6px; font-size:0.75rem; width:45%; outline:none;">
+        ${optionsHtml}
+      </select>
+    `;
+    
+    list.appendChild(row);
+  });
+  
+  wrapper.style.display = 'block';
+}
+
+async function saveBulkSyncMappings() {
+  const selects = document.querySelectorAll('.bulk-sync-select');
+  const mappings = [];
+  
+  selects.forEach(sel => {
+    const dbAccountId = sel.value;
+    const itemIndex = parseInt(sel.getAttribute('data-index'));
+    if (!dbAccountId) return;
+    
+    const item = bulkSyncItems[itemIndex];
+    const targetDbAcc = dbAccounts.find(a => a.id === dbAccountId);
+    if (!targetDbAcc) return;
+    
+    if (bulkSyncType === 'facebook') {
+      if (targetDbAcc.platform === 'facebook') {
+        mappings.push({
+          id: dbAccountId,
+          name: item.name,
+          handle: item.id,
+          accessToken: item.accessToken
+        });
+      } else if (targetDbAcc.platform === 'instagram' && item.instagram) {
+        mappings.push({
+          id: dbAccountId,
+          name: item.instagram.name || item.name,
+          handle: item.instagram.id,
+          accessToken: item.accessToken
+        });
+      }
+    } else if (bulkSyncType === 'google') {
+      mappings.push({
+        id: dbAccountId,
+        name: item.name,
+        handle: item.handle,
+        accessToken: document.getElementById('bulkSyncToken').value.trim()
+      });
+    }
+  });
+  
+  if (mappings.length === 0) {
+    showToast('No mappings were selected to save.', 'warning');
+    return;
+  }
+  
+  try {
+    await request('/api/sync/save', 'POST', { mappings });
+    showToast(`Successfully linked ${mappings.length} accounts automatically!`, 'success');
+    
+    document.getElementById('bulkSyncResultsWrapper').style.display = 'none';
+    document.getElementById('bulkSyncToken').value = '';
+    
+    if (state.activeTab === 'settings') {
+      await renderActiveTab();
+    }
+  } catch (err) {
+    showToast(`Failed to apply mappings: ${err.message}`, 'error');
+  }
 }
