@@ -39,6 +39,10 @@ const __dirname = path.dirname(__filename);
 // Middlewares
 app.use(express.json());
 app.use(cookieParser());
+app.use((req, res, next) => {
+  console.log(`[API Request] ${req.method} ${req.url}`);
+  next();
+});
 
 // Initialize Database
 await initDb();
@@ -223,11 +227,16 @@ app.get('/api/accounts', authenticateToken, async (req, res) => {
   }
 });
 
-// Connect Account integration (Simulated OAuth Approval)
+// Connect Account integration (Simulated or Live Credentials Setup)
 app.post('/api/accounts/:id/connect', authenticateToken, async (req, res) => {
   const { id } = req.params;
+  const { live, name, handle, accessToken } = req.body;
   try {
-    await updateAccountConnection(id, true, 'mock_access_token_1234567890');
+    if (live) {
+      await updateAccountConnection(id, true, accessToken, name, handle);
+    } else {
+      await updateAccountConnection(id, true, 'mock_access_token_1234567890');
+    }
     res.json({ success: true, message: 'API connection authorized' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to connect account integration' });

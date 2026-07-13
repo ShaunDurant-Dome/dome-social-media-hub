@@ -787,6 +787,7 @@ async function disconnectAccount(accountId) {
 }
 
 let tempOAuthAccount = null;
+let isLiveSetup = false;
 
 function openOAuthModal(account) {
   tempOAuthAccount = account;
@@ -795,7 +796,48 @@ function openOAuthModal(account) {
   document.getElementById('oauthProviderName').textContent = `${account.platform.charAt(0).toUpperCase() + account.platform.slice(1)} Connection`;
   document.getElementById('oauthUserInitials').textContent = account.avatar;
   
+  // Clear live input fields
+  document.getElementById('liveAccountName').value = '';
+  document.getElementById('liveAccountHandle').value = '';
+  document.getElementById('liveAccessToken').value = '';
+  
+  // Default to Simulate tab
+  toggleOAuthTab('simulate');
+  
   overlay.classList.add('active');
+}
+
+function toggleOAuthTab(tab) {
+  const simBtn = document.getElementById('tabSimulateBtn');
+  const liveBtn = document.getElementById('tabLiveBtn');
+  const simSection = document.getElementById('simulateAuthSection');
+  const liveSection = document.getElementById('liveAuthSection');
+  
+  if (tab === 'live') {
+    isLiveSetup = true;
+    liveBtn.style.borderBottomColor = 'var(--orange)';
+    liveBtn.style.color = '#fff';
+    liveBtn.style.fontWeight = '700';
+    
+    simBtn.style.borderBottomColor = 'transparent';
+    simBtn.style.color = 'var(--text-muted)';
+    simBtn.style.fontWeight = '400';
+    
+    liveSection.style.display = 'block';
+    simSection.style.display = 'none';
+  } else {
+    isLiveSetup = false;
+    simBtn.style.borderBottomColor = 'var(--orange)';
+    simBtn.style.color = '#fff';
+    simBtn.style.fontWeight = '700';
+    
+    liveBtn.style.borderBottomColor = 'transparent';
+    liveBtn.style.color = 'var(--text-muted)';
+    liveBtn.style.fontWeight = '400';
+    
+    simSection.style.display = 'block';
+    liveSection.style.display = 'none';
+  }
 }
 
 function closeOAuthModal() {
@@ -804,14 +846,34 @@ function closeOAuthModal() {
 }
 
 async function approveOAuthConnection() {
-  if (tempOAuthAccount) {
-    try {
-      await request(`/api/accounts/${tempOAuthAccount.id}/connect`, 'POST');
-      showToast(`Connected ${tempOAuthAccount.name} integration successfully!`, 'success');
-      await renderActiveTab();
-    } catch (e) {}
+  if (!tempOAuthAccount) return;
+  
+  let payload = { connected: true };
+  
+  if (isLiveSetup) {
+    const nameVal = document.getElementById('liveAccountName').value.trim();
+    const handleVal = document.getElementById('liveAccountHandle').value.trim();
+    const tokenVal = document.getElementById('liveAccessToken').value.trim();
+    
+    if (!nameVal || !handleVal || !tokenVal) {
+      showToast('All fields are required for live connection!', 'error');
+      return;
+    }
+    
+    payload.name = nameVal;
+    payload.handle = handleVal;
+    payload.accessToken = tokenVal;
+    payload.live = true;
+  } else {
+    payload.live = false;
   }
-  closeOAuthModal();
+  
+  try {
+    await request(`/api/accounts/${tempOAuthAccount.id}/connect`, 'POST', payload);
+    showToast(`Connected ${payload.name || tempOAuthAccount.name} integration successfully!`, 'success');
+    await renderActiveTab();
+    closeOAuthModal();
+  } catch (e) {}
 }
 
 // --- SECURE AUTHENTICATION WORKFLOWS ---
@@ -969,6 +1031,10 @@ function setupEventListeners() {
       createNewUserProfile();
     });
   }
+
+  // Tab toggles inside oauth modal
+  document.getElementById('tabSimulateBtn').addEventListener('click', () => toggleOAuthTab('simulate'));
+  document.getElementById('tabLiveBtn').addEventListener('click', () => toggleOAuthTab('live'));
 }
 
 // --- TOAST NOTIFICATIONS ---

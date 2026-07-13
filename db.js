@@ -214,18 +214,35 @@ export async function getAccounts(departmentId) {
   }
 }
 
-export async function updateAccountConnection(id, connected, accessToken = null) {
+export async function updateAccountConnection(id, connected, accessToken = null, name = null, handle = null) {
   if (isPostgres) {
-    await pool.query(
-      'UPDATE social_accounts SET connected = $1, access_token = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [connected, accessToken, id]
-    );
+    let query = 'UPDATE social_accounts SET connected = $1, access_token = $2, updated_at = CURRENT_TIMESTAMP';
+    const params = [connected, accessToken];
+    let index = 3;
+    
+    if (name) {
+      query += `, name = $${index}`;
+      params.push(name);
+      index++;
+    }
+    if (handle) {
+      query += `, handle = $${index}`;
+      params.push(handle);
+      index++;
+    }
+    
+    query += ` WHERE id = $${index}`;
+    params.push(id);
+    
+    await pool.query(query, params);
   } else {
     const accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
     const index = accounts.findIndex(a => a.id === id);
     if (index > -1) {
       accounts[index].connected = connected;
       accounts[index].accessToken = accessToken;
+      if (name) accounts[index].name = name;
+      if (handle) accounts[index].handle = handle;
       fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
     }
   }
@@ -342,5 +359,27 @@ export async function getDueScheduledPosts() {
   } else {
     const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
     return posts.filter(p => p.status === 'scheduled' && p.scheduledDate && new Date(p.scheduledDate) <= now);
+  }
+}
+
+export async function getAccountTokensForDept(deptId) {
+  if (isPostgres) {
+    const res = await pool.query('SELECT platform, access_token, name, handle FROM social_accounts WHERE department_id = $1 AND connected = true', [deptId]);
+    return res.rows.map(row => ({
+      platform: row.platform,
+      accessToken: row.access_token,
+      name: row.name,
+      handle: row.handle
+    }));
+  } else {
+    const accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+    return accounts
+      .filter(a => a.departmentId === deptId && a.connected)
+      .map(a => ({
+        platform: a.platform,
+        accessToken: a.accessToken || a.access_token,
+        name: a.name,
+        handle: a.handle
+      }));
   }
 }
