@@ -298,7 +298,15 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
     const accRes = await fetch('https://mybusiness.googleapis.com/v4/accounts', {
       headers: { 'Authorization': `Bearer ${userToken}` }
     });
-    const accJson = await accRes.json();
+    
+    const contentType = accRes.headers.get('content-type') || '';
+    let accJson;
+    if (contentType.includes('application/json')) {
+      accJson = await accRes.json();
+    } else {
+      throw new Error(`Google returned a non-JSON error (HTTP ${accRes.status}). Please check that the 'My Business Business Information API' is enabled in your Google Cloud Developer Console.`);
+    }
+    
     if (!accRes.ok) {
       throw new Error(accJson.error?.message || 'Failed to fetch Google accounts');
     }
@@ -308,14 +316,18 @@ app.post('/api/sync/google', authenticateToken, async (req, res) => {
       const locRes = await fetch(`https://mybusiness.googleapis.com/v4/${acc.name}/locations`, {
         headers: { 'Authorization': `Bearer ${userToken}` }
       });
-      const locJson = await locRes.json();
-      if (locRes.ok && locJson.locations) {
-        for (const loc of locJson.locations) {
-          locations.push({
-            name: loc.locationName,
-            id: loc.name.split('/').pop(),
-            handle: loc.name
-          });
+      
+      const locContentType = locRes.headers.get('content-type') || '';
+      if (locContentType.includes('application/json')) {
+        const locJson = await locRes.json();
+        if (locRes.ok && locJson.locations) {
+          for (const loc of locJson.locations) {
+            locations.push({
+              name: loc.locationName,
+              id: loc.name.split('/').pop(),
+              handle: loc.name
+            });
+          }
         }
       }
     }
