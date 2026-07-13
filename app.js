@@ -165,29 +165,41 @@ async function selectDepartment(deptId) {
 }
 
 function selectMediaPreset(url, element) {
-  const thumbs = document.querySelectorAll('.media-thumb');
-  thumbs.forEach(t => t.classList.remove('selected'));
-
   if (state.selectedMediaUrl === url) {
-    // Toggle off
-    state.selectedMediaUrl = '';
-    document.getElementById('mediaUploadBox').style.borderColor = '';
-    document.getElementById('mediaUploadBox').innerHTML = `
-      <span class="upload-icon">📸</span>
-      <span class="upload-text">Click to select an image from the gallery below</span>
-      <span class="upload-subtext">Images auto-adjust to platform sizes</span>
-    `;
+    clearMedia();
   } else {
     // Toggle on
     state.selectedMediaUrl = url;
+    const thumbs = document.querySelectorAll('.media-thumb');
+    thumbs.forEach(t => t.classList.remove('selected'));
     element.classList.add('selected');
+    
     document.getElementById('mediaUploadBox').style.borderColor = 'var(--orange)';
     document.getElementById('mediaUploadBox').innerHTML = `
       <img src="${url}" style="height: 60px; border-radius: 6px; object-fit: cover; margin-bottom: 5px; display:block; margin: 0 auto 5px auto;">
-      <span class="upload-text" style="color:var(--orange);">Media attached successfully</span>
+      <span class="upload-text" style="color:var(--orange); display:block; margin-bottom: 8px;">Media attached successfully</span>
+      <button type="button" class="btn btn-secondary" id="removeMediaBtn" style="padding: 4px 10px; font-size: 0.72rem; margin: 0 auto; display: block; border-radius:6px; cursor:pointer;">Remove Image</button>
     `;
+
+    document.getElementById('removeMediaBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearMedia();
+    });
   }
 
+  updateComposerPreviews();
+}
+
+function clearMedia() {
+  state.selectedMediaUrl = '';
+  const thumbs = document.querySelectorAll('.media-thumb');
+  thumbs.forEach(t => t.classList.remove('selected'));
+  document.getElementById('mediaUploadBox').style.borderColor = '';
+  document.getElementById('mediaUploadBox').innerHTML = `
+    <span class="upload-icon">📸</span>
+    <span class="upload-text">Click to select an image from the gallery below</span>
+    <span class="upload-subtext">Images auto-adjust to platform sizes</span>
+  `;
   updateComposerPreviews();
 }
 
@@ -675,8 +687,14 @@ function loadPostIntoComposer(post) {
     document.getElementById('mediaUploadBox').style.borderColor = 'var(--orange)';
     document.getElementById('mediaUploadBox').innerHTML = `
       <img src="${post.mediaUrl}" style="height: 60px; border-radius: 6px; object-fit: cover; margin-bottom: 5px; display:block; margin: 0 auto 5px auto;">
-      <span class="upload-text" style="color:var(--orange);">Media attached</span>
+      <span class="upload-text" style="color:var(--orange); display:block; margin-bottom: 8px;">Media attached</span>
+      <button type="button" class="btn btn-secondary" id="removeMediaBtn" style="padding: 4px 10px; font-size: 0.72rem; margin: 0 auto; display: block; border-radius:6px; cursor:pointer;">Remove Image</button>
     `;
+    
+    document.getElementById('removeMediaBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearMedia();
+    });
   } else {
     document.getElementById('mediaUploadBox').style.borderColor = '';
     document.getElementById('mediaUploadBox').innerHTML = `

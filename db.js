@@ -107,6 +107,9 @@ export async function initDb() {
         }
       }
 
+      // Clean up old mock posts if present
+      await pool.query("DELETE FROM posts WHERE id LIKE 'post-nam-%' OR id LIKE 'post-gym-%' OR id LIKE 'post-cyc-%' OR id LIKE 'post-hot-%' OR id LIKE 'post-kin-%' OR id LIKE 'post-pit-%'");
+      
       const postsCount = await pool.query('SELECT COUNT(*) FROM posts');
       if (parseInt(postsCount.rows[0].count) === 0) {
         console.log('DB: Seeding initial posts...');
@@ -134,6 +137,17 @@ export async function initDb() {
     if (!fs.existsSync(POSTS_FILE)) {
       fs.writeFileSync(POSTS_FILE, JSON.stringify(INITIAL_POSTS, null, 2));
       console.log('DB: Created local db_posts.json');
+    } else {
+      // Clean up old mock posts from local file if they exist
+      try {
+        let posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
+        const originalLength = posts.length;
+        posts = posts.filter(p => !p.id.startsWith('post-nam-') && !p.id.startsWith('post-gym-') && !p.id.startsWith('post-cyc-') && !p.id.startsWith('post-hot-') && !p.id.startsWith('post-kin-') && !p.id.startsWith('post-pit-'));
+        if (posts.length !== originalLength) {
+          fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2));
+          console.log(`DB: Cleared ${originalLength - posts.length} mockup posts from local file.`);
+        }
+      } catch (e) {}
     }
   }
 }
