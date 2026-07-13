@@ -1234,12 +1234,26 @@ async function saveBulkSyncMappings() {
     
     if (bulkSyncType === 'facebook') {
       if (targetDbAcc.platform === 'facebook') {
+        // Link Facebook Page
         mappings.push({
           id: dbAccountId,
           name: item.name,
           handle: item.id,
           accessToken: item.accessToken
         });
+
+        // AUTO-LINK Instagram if linked in Meta settings!
+        if (item.instagram) {
+          const instaAcc = dbAccounts.find(a => a.departmentId === targetDbAcc.departmentId && a.platform === 'instagram');
+          if (instaAcc) {
+            mappings.push({
+              id: instaAcc.id,
+              name: item.instagram.name || `${item.name} Instagram`,
+              handle: item.instagram.id,
+              accessToken: item.accessToken
+            });
+          }
+        }
       } else if (targetDbAcc.platform === 'instagram' && item.instagram) {
         mappings.push({
           id: dbAccountId,
