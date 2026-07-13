@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dome Social Media Hub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- LOGIN OVERLAY -->
+  <div class="login-overlay active" id="loginOverlay">
+    <div class="glass-panel login-card">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <img src="logo_white.png" style="height: 60px; margin-bottom: 15px;" alt="The Dome Logo">
+        <h2 style="font-size: 1.5rem; margin-bottom: 5px;">THE DOME</h2>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">Social Media Management Hub Login</p>
+      </div>
+      
+      <form id="loginForm" onsubmit="return false;">
+        <div class="input-group" style="margin-bottom: 18px;">
+          <label for="usernameInput" class="label-mini" style="margin-bottom:6px; display:block;">Username</label>
+          <input type="text" id="usernameInput" placeholder="Enter username" required style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:8px; padding:10px; color:#fff; font-family:var(--font-sans); outline:none;">
+        </div>
+        
+        <div class="input-group" style="margin-bottom: 25px;">
+          <label for="passwordInput" class="label-mini" style="margin-bottom:6px; display:block;">Password</label>
+          <input type="password" id="passwordInput" placeholder="Enter password" required style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:8px; padding:10px; color:#fff; font-family:var(--font-sans); outline:none;">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding:12px;" id="loginSubmitBtn">Log In Securely</button>
+      </form>
+      
+      <div style="margin-top: 20px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; border-top:1px solid rgba(255,255,255,0.05); padding-top:15px; text-align:center;">
+        <strong>Demo Login Roles:</strong><br>
+        • Admin: <code>admin</code> / <code>adminpass</code><br>
+        • Gym Manager: <code>gymmanager</code> / <code>gympass</code><br>
+        • Lounge Manager: <code>loungemanager</code> / <code>loungepass</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Background Glow Orbs -->
+  <div class="bg-glow bg-glow-orange"></div>
+  <div class="bg-glow bg-glow-blue"></div>
+
+  <div class="app-container">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <a href="#" class="logo-container">
+        <!-- White Dome Logo -->
+        <img src="logo_white.png" class="dome-logo" alt="The Dome Logo">
+        <div class="logo-text">
+          <h1>THE DOME</h1>
+          <div class="subtitle">Social Hub</div>
+        </div>
+      </a>
+
+      <!-- Department Selector dropdown -->
+      <div class="dept-selector-wrapper" style="position: relative;">
+        <span class="label-mini">Workspace / Dept</span>
+        <div class="dept-dropdown" id="activeDeptBtn">
+          <span id="activeDeptText">📣 Marketing & Events</span>
+          <span style="font-size: 0.8rem;">▼</span>
+        </div>
+        <div class="dept-dropdown-list" id="deptDropdownList">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Navigation Menus -->
+      <nav style="flex-grow: 1;">
+        <span class="label-mini">Navigation</span>
+        <ul class="nav-menu">
+          <li class="nav-item active" data-tab="composer">
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+              </svg>
+              Composer & Feed
+            </button>
+          </li>
+          <li class="nav-item" data-tab="calendar">
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Content Calendar
+            </button>
+          </li>
+          <li class="nav-item" data-tab="analytics">
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              Analytics Reports
+            </button>
+          </li>
+          <li class="nav-item" data-tab="settings">
+            <button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+              </svg>
+              Connected Channels
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Active accounts list -->
+      <div class="sidebar-status">
+        <span class="label-mini">Connected Accounts</span>
+        <div class="accounts-status-list" id="sidebarAccountsList">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Log out action -->
+      <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+        <button class="btn btn-secondary" id="logoutBtn" style="width: 100%; justify-content: flex-start; gap: 10px; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.15); color: #ef4444;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          Log Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN PANEL -->
+    <main class="main-content">
+      <!-- Content Top Header -->
+      <header class="content-header">
+        <div class="header-title-container">
+          <h2 id="pageHeading">Composer & Live Feed</h2>
+          <p id="pageDescription">Draft and schedule posts across multiple platforms simultaneously.</p>
+        </div>
+      </header>
+
+      <!-- TAB 1: COMPOSER & PREVIEWS -->
+      <section id="tab-composer" class="tab-panel active">
+        <div class="composer-layout">
+          <!-- Left side: Composer Form -->
+          <div class="glass-panel composer-card">
+            <!-- Platform selection checkboxes -->
+            <div class="composer-section">
+              <h3 class="section-title-sub">1. Select Social Channels</h3>
+              <div class="platform-select-grid" id="composerPlatformGrid">
+                <!-- Buttons rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Write text area -->
+            <div class="composer-section">
+              <h3 class="section-title-sub">2. Post Content</h3>
+              <div class="textarea-wrapper">
+                <textarea class="composer-textarea" id="postText" placeholder="Write something inspiring for your community..."></textarea>
+                <div class="textarea-footer">
+                  <button class="emoji-picker-btn" id="emojiBtn" title="Add emoji">😀</button>
+                  <span class="char-counter" id="charCounter">0 / 2200 characters</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Media selection -->
+            <div class="composer-section">
+              <h3 class="section-title-sub">3. Attach Media</h3>
+              <div class="media-upload-area" id="mediaUploadBox">
+                <span class="upload-icon">📸</span>
+                <span class="upload-text">Click to select an image from the gallery below</span>
+                <span class="upload-subtext">Images auto-adjust to platform sizes</span>
+              </div>
+              
+              <!-- Pre-populated media presets -->
+              <div class="media-selection-gallery" id="mediaPresetGallery">
+                <!-- Gallery populated dynamically with high-quality mock image cards -->
+              </div>
+            </div>
+
+            <!-- Scheduler option toggle -->
+            <div class="composer-section">
+              <h3 class="section-title-sub">4. Scheduling Options</h3>
+              <div class="scheduler-toggle-card">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <span style="font-weight:600; font-size:0.9rem;">Schedule for later</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted);">Set a date and time for automatic posting</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="scheduleToggle">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Date time rows (hidden by default) -->
+              <div class="schedule-fields-row" id="scheduleFieldsRow" style="display: none;">
+                <div class="date-input-wrapper">
+                  <label for="postDate">Date</label>
+                  <input type="date" id="postDate">
+                </div>
+                <div class="date-input-wrapper">
+                  <label for="postTime">Time</label>
+                  <input type="time" id="postTime">
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="composer-footer-buttons">
+              <button class="btn btn-secondary" id="saveDraftBtn">Save as Draft</button>
+              <button class="btn btn-primary" id="publishSubmitBtn">Publish Now</button>
+            </div>
+          </div>
+
+          <!-- Right side: Live Preview Frame -->
+          <div class="glass-panel preview-card">
+            <h3 class="section-title-sub" style="margin-bottom:15px;">Live Post Previews</h3>
+            
+            <div class="preview-header">
+              <!-- Tabs for each platform -->
+              <div class="preview-tabs" id="previewTabsBar">
+                <button class="preview-tab-btn facebook-tab active" data-preview-platform="facebook">Facebook</button>
+                <button class="preview-tab-btn instagram-tab" data-preview-platform="instagram">Instagram</button>
+                <button class="preview-tab-btn linkedin-tab" data-preview-platform="linkedin">LinkedIn</button>
+                <button class="preview-tab-btn google-tab" data-preview-platform="google">Google Updates</button>
+              </div>
+            </div>
+
+            <div class="preview-frame-container" id="previewFrameContainer">
+              <!-- FACEBOOK PREVIEW MOCK -->
+              <div class="preview-frame fb-frame active" id="fbPreviewFrame">
+                <div class="fb-header">
+                  <div class="fb-avatar" id="fbAvatarText">DE</div>
+                  <div class="fb-user-info">
+                    <span class="fb-name" id="fbAccountName">The Dome Events</span>
+                    <span class="fb-time">Just now · 🌎</span>
+                  </div>
+                </div>
+                <div class="fb-content" id="fbContentText">Write text content on the left to see the live feed mockup.</div>
+                <div class="fb-media" id="fbMediaContainer" style="display: none;">
+                  <img src="" alt="Post attachment" id="fbMediaImg">
+                </div>
+                <div class="fb-actions">
+                  <div class="fb-action-btn">👍 Like</div>
+                  <div class="fb-action-btn">💬 Comment</div>
+                  <div class="fb-action-btn">↪️ Share</div>
+                </div>
+              </div>
+
+              <!-- INSTAGRAM PREVIEW MOCK -->
+              <div class="preview-frame ig-frame" id="igPreviewFrame">
+                <div class="ig-header">
+                  <div class="ig-avatar">
+                    <div class="ig-avatar-inner" id="igAvatarText">DE</div>
+                  </div>
+                  <span class="ig-handle" id="igAccountHandle">@thedomeevents</span>
+                </div>
+                <div class="ig-media" id="igMediaContainer">
+                  <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80" alt="Instagram Media" id="igMediaImg">
+                </div>
+                <div class="ig-icons">
+                  <div class="ig-left-icons">
+                    <span>❤️</span>
+                    <span>💬</span>
+                    <span>✈️</span>
+                  </div>
+                  <span>🔖</span>
+                </div>
+                <div class="ig-caption-area">
+                  <span class="ig-handle" id="igAccountHandleCaption" style="margin-right: 6px;">@thedomeevents</span>
+                  <span class="ig-caption-text" id="igContentText">Write text content on the left to see the live feed mockup.</span>
+                </div>
+              </div>
+
+              <!-- LINKEDIN PREVIEW MOCK -->
+              <div class="preview-frame li-frame" id="liPreviewFrame">
+                <div class="li-header">
+                  <div class="li-avatar" id="liAvatarText">TD</div>
+                  <div class="li-user-info">
+                    <span class="li-name" id="liAccountName">The Dome Group</span>
+                    <span class="li-sub" id="liAccountFollowers">12,480 followers</span>
+                    <span class="li-sub">Just now · 🌐</span>
+                  </div>
+                </div>
+                <div class="li-content" id="liContentText">Write text content on the left to see the live feed mockup.</div>
+                <div class="li-media" id="liMediaContainer" style="display: none;">
+                  <img src="" alt="LinkedIn Attachment" id="liMediaImg">
+                </div>
+                <div class="li-actions">
+                  <span>👍 Like</span>
+                  <span>💬 Comment</span>
+                  <span>🔁 Repost</span>
+                  <span>✉️ Send</span>
+                </div>
+              </div>
+
+              <!-- GOOGLE BUSINESS PROFILE PREVIEW MOCK -->
+              <div class="preview-frame go-frame" id="goPreviewFrame">
+                <div class="go-header">
+                  <div class="go-avatar">G</div>
+                  <div class="go-user-info">
+                    <span class="go-name" id="goAccountName">The Dome Complex</span>
+                    <span class="go-label">Google Search Profile Update</span>
+                  </div>
+                </div>
+                <div class="go-body">
+                  <div class="go-content" id="goContentText">Write text content on the left to see the live feed mockup.</div>
+                  <div class="go-media" id="goMediaContainer" style="display: none;">
+                    <img src="" alt="Google Business Update" id="goMediaImg">
+                  </div>
+                  <div class="go-action-btn-mock">Learn More</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Queued/Drafts Posts Listing underneath composer -->
+        <div class="glass-panel post-list-card">
+          <div class="list-header">
+            <h3 style="font-size: 1.1rem;">Post Queue & Archives</h3>
+            <div class="list-filters">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="scheduled">Scheduled</button>
+              <button class="filter-btn" data-filter="published">Published</button>
+              <button class="filter-btn" data-filter="draft">Drafts</button>
+            </div>
+          </div>
+
+          <div class="post-items-container" id="postItemsContainer">
+            <!-- Rendered by JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: CONTENT CALENDAR -->
+      <section id="tab-calendar" class="tab-panel">
+        <div class="glass-panel calendar-card">
+          <div class="calendar-header-row">
+            <div class="calendar-nav">
+              <button class="btn btn-secondary" id="prevMonthBtn" style="padding: 8px 12px;">◀</button>
+              <h3 class="calendar-month-year" id="calendarMonthYear">July 2026</h3>
+              <button class="btn btn-secondary" id="nextMonthBtn" style="padding: 8px 12px;">▶</button>
+            </div>
+            
+            <div style="font-size: 0.8rem; color: var(--text-muted); display:flex; gap:12px; align-items:center;">
+              <span>💡 Drag & drop scheduled cards to change post dates</span>
+            </div>
+          </div>
+
+          <div class="calendar-grid">
+            <div class="calendar-day-header">Sun</div>
+            <div class="calendar-day-header">Mon</div>
+            <div class="calendar-day-header">Tue</div>
+            <div class="calendar-day-header">Wed</div>
+            <div class="calendar-day-header">Thu</div>
+            <div class="calendar-day-header">Fri</div>
+            <div class="calendar-day-header">Sat</div>
+          </div>
+          
+          <div class="calendar-grid" id="calendarCellsContainer">
+            <!-- Cells generated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: ANALYTICS -->
+      <section id="tab-analytics" class="tab-panel">
+        <!-- Metric Overviews -->
+        <div class="analytics-overview-grid" id="analyticsOverviewGrid">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="analytics-charts-grid">
+          <!-- Left side: Stacked Chart -->
+          <div class="glass-panel chart-card">
+            <div class="chart-header">
+              <h3>Monthly Platform Reach Trend</h3>
+              <div class="chart-legend">
+                <div class="legend-item"><span class="legend-color facebook"></span>Facebook</div>
+                <div class="legend-item"><span class="legend-color instagram"></span>Instagram</div>
+                <div class="legend-item"><span class="legend-color linkedin"></span>LinkedIn</div>
+                <div class="legend-item"><span class="legend-color google"></span>Google</div>
+              </div>
+            </div>
+            
+            <div class="bar-chart-container">
+              <div class="chart-y-axis">
+                <div class="y-axis-line"></div>
+                <div class="y-axis-line"></div>
+                <div class="y-axis-line"></div>
+                <div class="y-axis-line"></div>
+                <div class="y-axis-line"></div>
+              </div>
+              <div class="chart-bars-row" id="chartBarsRow">
+                <!-- Bar columns populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side: Platform Performance Summary -->
+          <div class="glass-panel chart-card">
+            <h3 style="margin-bottom: 20px;">Channel Engagement</h3>
+            <div class="platform-breakdown-list" id="platformBreakdownList">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: CHANNELS & SETTINGS -->
+      <section id="tab-settings" class="tab-panel">
+        <div class="settings-layout">
+          <!-- Connections settings -->
+          <div class="glass-panel settings-card">
+            <h3 style="margin-bottom: 8px;">Social Channels Integrations</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom: 20px;">
+              Manage APIs and connect handles for the active department.
+            </p>
+            
+            <div class="accounts-grid" id="settingsAccountsGrid">
+              <!-- Account card items populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Documentation / General Settings -->
+          <div class="glass-panel settings-card">
+            <h3 style="margin-bottom: 12px;">System Settings & Guidelines</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; line-height: 1.5; margin-bottom: 15px;">
+              The Social Media Hub runs entirely in the browser and synchronizes local drafts, scheduled items, and profiles to your browser's persistent database.
+            </p>
+            
+            <div style="background: rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:10px; padding:15px; margin-bottom:20px;">
+              <span style="font-size:0.85rem; font-weight:700; color:var(--orange); display:block; margin-bottom:6px;">Multi-Department Posting Rules</span>
+              <p style="font-size:0.78rem; color:var(--text-secondary); line-height:1.4;">
+                Ensure that your department handles are correctly linked prior to scheduled posts. Scheduled posts compile cross-platform feed configurations and trigger automated publishing checks every 10 seconds.
+              </p>
+            </div>
+
+            <h4 style="font-size: 0.9rem; margin-bottom:8px; color: var(--text-primary);">System Information</h4>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem; color:var(--text-secondary);">
+              <div style="display:flex; justify-content:space-between; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span>Storage Provider</span>
+                <span style="font-weight:600; color:var(--color-green);">localStorage (Persistent)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span>Background Publisher Daemon</span>
+                <span style="font-weight:600; color:var(--color-green);">Running (Web Worker Emulated)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span>Queue Check Frequency</span>
+                <span style="font-weight:600;">10,000 ms</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- User Access Management card (Visible only to Admin) -->
+          <div class="glass-panel settings-card" id="adminUserManagementCard" style="display: none; grid-column: span 2; margin-top: 30px;">
+            <h3 style="margin-bottom: 8px;">User Access Management</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom: 20px;">
+              Configure user accounts and manage their department workspace permissions.
+            </p>
+            
+            <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 30px;">
+              <!-- Left: Users List -->
+              <div>
+                <span class="label-mini">Active Users & Permissions</span>
+                <div id="usersListContainer" style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+              
+              <!-- Right: Create User Form -->
+              <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--glass-border); padding: 20px; border-radius: 12px;">
+                <span class="label-mini" style="color:var(--orange);">Create New User Profile</span>
+                <form id="createUserForm" onsubmit="return false;" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+                  <div class="date-input-wrapper">
+                    <label for="newUsername" style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px; display:block;">Username</label>
+                    <input type="text" id="newUsername" required placeholder="Enter username" style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:8px; padding:10px; color:#fff; font-family:var(--font-sans); outline:none;">
+                  </div>
+                  
+                  <div class="date-input-wrapper">
+                    <label for="newPassword" style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px; display:block;">Password</label>
+                    <input type="password" id="newPassword" required placeholder="Enter password" style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:8px; padding:10px; color:#fff; font-family:var(--font-sans); outline:none;">
+                  </div>
+                  
+                  <div class="date-input-wrapper">
+                    <label for="newUserRole" style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px; display:block;">Role / Title</label>
+                    <select id="newUserRole" style="width:100%; background:#0b1a35; border:1px solid var(--glass-border); border-radius:8px; padding:10px; color:#fff; font-family:var(--font-sans); outline:none;">
+                      <option value="manager">Department Manager</option>
+                      <option value="administrator">System Administrator</option>
+                    </select>
+                  </div>
+                  
+                  <div class="date-input-wrapper">
+                    <label style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px; display:block;">Allowed Workspaces</label>
+                    <div id="workspaceCheckboxes" style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+                      <!-- Generated dynamically based on DEPARTMENTS -->
+                    </div>
+                  </div>
+                  
+                  <button type="submit" class="btn btn-primary" id="createUserBtn" style="width:100%; padding:10px; justify-content:center; margin-top: 10px;">Create User Profile</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- SIMULATED OAUTH AUTHENTICATION MODAL -->
+  <div class="modal-overlay" id="oauthModalOverlay">
+    <div class="oauth-modal">
+      <div class="oauth-header">
+        <!-- Selected provider logo will go here -->
+        <span style="font-size: 1.1rem; font-weight:700;" id="oauthProviderName">OAuth Authorization</span>
+        <button id="oauthCloseBtn" style="background:transparent; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+      <div class="oauth-body">
+        <p style="font-size:0.88rem; color:#65676b; margin-bottom: 20px;">
+          The Dome Social Hub is requesting permission to access your profile, post on your behalf, and retrieve engagement metrics.
+        </p>
+        
+        <div class="oauth-user-profile">
+          <div class="oauth-avatar-circle" id="oauthUserInitials">TD</div>
+          <div class="oauth-profile-info">
+            <span class="oauth-profile-name">The Dome Admin</span>
+            <span class="oauth-profile-email">admin@thedome.com</span>
+          </div>
+        </div>
+
+        <span class="oauth-permissions-title">Requested Permissions:</span>
+        <div class="oauth-permission-item">
+          <input type="checkbox" checked disabled class="oauth-permission-checkbox">
+          <span>Read basic profile information (profile photo, handle, name)</span>
+        </div>
+        <div class="oauth-permission-item">
+          <input type="checkbox" checked disabled class="oauth-permission-checkbox">
+          <span>Publish status updates, photos, and video media</span>
+        </div>
+        <div class="oauth-permission-item">
+          <input type="checkbox" checked disabled class="oauth-permission-checkbox">
+          <span>Retrieve daily/weekly impressions and follower engagement statistics</span>
+        </div>
+      </div>
+      <div class="oauth-footer">
+        <button class="oauth-btn oauth-btn-cancel" id="oauthCancelBtn">Cancel</button>
+        <button class="oauth-btn oauth-btn-approve" id="oauthApproveBtn">Authorize Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
