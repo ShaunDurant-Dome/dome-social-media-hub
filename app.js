@@ -1,6 +1,5 @@
-// Main Application Logic for Dome Social Media Hub
+// Client-Side Application Controller for Dome Social Media Hub
 
-import { DEPARTMENTS, SOCIAL_ACCOUNTS, INITIAL_POSTS, ANALYTICS_DATA } from './mockData.js';
 import { 
   updatePlatformPreview, 
   renderCalendar, 
@@ -10,13 +9,13 @@ import {
 
 // --- STATE MANAGEMENT ---
 let state = {
-  departments: DEPARTMENTS,
+  departments: [],
   accounts: [],
   posts: [],
-  analytics: ANALYTICS_DATA,
+  analytics: null,
   
   // Navigation & View Filters
-  activeDeptId: 'namibia',
+  activeDeptId: '',
   activeTab: 'composer',
   currentFilter: 'all',
   currentCalendarDate: new Date(),
@@ -31,15 +30,6 @@ let state = {
   users: []
 };
 
-// Users data with role-based access configurations
-const USERS = [
-  { username: 'admin', password: 'adminpass', role: 'administrator', allowedDepts: ['namibia', 'gym', 'cycling', 'hotel', 'kinderzone', 'pitstop'] },
-  { username: 'gymmanager', password: 'gympass', role: 'gym_manager', allowedDepts: ['gym', 'cycling'] },
-  { username: 'loungemanager', password: 'loungepass', role: 'lounge_manager', allowedDepts: ['pitstop'] },
-  { username: 'namibiamanager', password: 'nampass', role: 'namibia_manager', allowedDepts: ['namibia'] },
-  { username: 'hotelmanager', password: 'hotelpass', role: 'hotel_manager', allowedDepts: ['hotel', 'kinderzone'] }
-];
-
 // Preset images for media gallery
 const MEDIA_PRESETS = [
   { id: 'img-1', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80', label: 'Event' },
@@ -50,101 +40,91 @@ const MEDIA_PRESETS = [
   { id: 'img-6', url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80', label: 'Concert' }
 ];
 
+// --- API WRAPPER CLIENT ---
+async function request(url, method = 'GET', data = null) {
+  try {
+    const config = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (data) {
+      config.body = JSON.stringify(data);
+    }
+    
+    const response = await fetch(url, config);
+    
+    // Auto logout if session token cookie is rejected
+    if (response.status === 401 && !url.includes('/api/auth/session')) {
+      logoutUser(false); // Logout silently without sending another API call
+      throw new Error('Session expired. Please log in again.');
+    }
+    
+    const resData = await response.json();
+    if (!response.ok) {
+      throw new Error(resData.error || 'Server request failed');
+    }
+    
+    return resData;
+  } catch (err) {
+    if (err.message !== 'Session expired. Please log in again.') {
+      showToast(err.message, 'error');
+    }
+    throw err;
+  }
+}
+
 // --- APP INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-  loadFromLocalStorage();
   restoreSession();
-  initUI();
   setupEventListeners();
-  startSchedulerLoop();
-  
-  // Initial renders
-  if (state.currentUser) {
-    renderActiveTab();
-    showToast('Welcome to Dome Social Hub', 'success');
-  }
+  startWebSchedulerPolling();
 });
 
-// Load state from local storage or set defaults
-function loadFromLocalStorage() {
-  let localAccounts = localStorage.getItem('dome_social_accounts');
-  let localPosts = localStorage.getItem('dome_social_posts');
-  let localUsers = localStorage.getItem('dome_social_users');
-  
-  // Migrate schema from default/older workspace configuration
-  let parsedAccounts = [];
+// Restore active session
+async function restoreSession() {
   try {
-    if (localAccounts) parsedAccounts = JSON.parse(localAccounts);
-  } catch (e) {}
-
-  if (localAccounts && (localAccounts.includes('"departmentId":"marketing"') || parsedAccounts.length < 24)) {
-    localStorage.removeItem('dome_social_accounts');
-    localStorage.removeItem('dome_social_posts');
-    localStorage.removeItem('dome_social_users');
-    localAccounts = null;
-    localPosts = null;
-    localUsers = null;
-  }
-  
-  if (localAccounts) {
-    state.accounts = JSON.parse(localAccounts);
-  } else {
-    state.accounts = [...SOCIAL_ACCOUNTS];
-    saveAccountsToLocalStorage();
-  }
-
-  if (localPosts) {
-    state.posts = JSON.parse(localPosts);
-  } else {
-    state.posts = [...INITIAL_POSTS];
-    savePostsToLocalStorage();
-  }
-
-  if (localUsers) {
-    state.users = JSON.parse(localUsers);
-  } else {
-    state.users = [...USERS];
-    saveUsersToLocalStorage();
+    const session = await request('/api/auth/session');
+    if (session.loggedIn) {
+      state.currentUser = session;
+      document.getElementById('loginOverlay').classList.remove('active');
+      
+      // Load departments
+      state.departments = await request('/api/departments');
+      
+      initUI();
+      
+      // Select default department
+      state.activeDeptId = state.currentUser.allowedDepts[0];
+      await selectDepartment(state.activeDeptId);
+    } else {
+      showLoginOverlay();
+    }
+  } catch (e) {
+    showLoginOverlay();
   }
 }
 
-function saveAccountsToLocalStorage() {
-  localStorage.setItem('dome_social_accounts', JSON.stringify(state.accounts));
-}
-
-function savePostsToLocalStorage() {
-  localStorage.setItem('dome_social_posts', JSON.stringify(state.posts));
-}
-
-function saveUsersToLocalStorage() {
-  localStorage.setItem('dome_social_users', JSON.stringify(state.users));
+function showLoginOverlay() {
+  state.currentUser = null;
+  document.getElementById('loginOverlay').classList.add('active');
 }
 
 // --- UI CONSTRUCTORS ---
 function initUI() {
-  // Filter departments based on allowed list for logged-in user
-  const allowedDepts = state.currentUser ? state.currentUser.allowedDepts : [];
-  const filteredDepts = state.departments.filter(d => allowedDepts.includes(d.id));
-
   // Render departments dropdown items
   const deptList = document.getElementById('deptDropdownList');
   deptList.innerHTML = '';
   
-  filteredDepts.forEach(dept => {
+  state.departments.forEach(dept => {
     const item = document.createElement('div');
     item.className = 'dept-dropdown-item';
-    item.innerHTML = `${dept.icon} ${dept.name}`;
+    item.innerHTML = `${dept.name}`;
     item.addEventListener('click', () => {
       selectDepartment(dept.id);
       deptList.classList.remove('active');
     });
     deptList.appendChild(item);
   });
-
-  // Verify active department is still within user permissions
-  if (state.currentUser && !allowedDepts.includes(state.activeDeptId)) {
-    state.activeDeptId = allowedDepts[0];
-  }
 
   // Render presets gallery
   const gallery = document.getElementById('mediaPresetGallery');
@@ -159,12 +139,6 @@ function initUI() {
     gallery.appendChild(thumb);
   });
 
-  // Select default department text label in UI
-  const initialDept = state.departments.find(d => d.id === state.activeDeptId);
-  if (initialDept) {
-    document.getElementById('activeDeptText').textContent = `${initialDept.icon} ${initialDept.name}`;
-  }
-
   // Default dates in composer
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -173,22 +147,19 @@ function initUI() {
 }
 
 // --- CONTROLLERS & ACTIONS ---
-function selectDepartment(deptId) {
+async function selectDepartment(deptId) {
   state.activeDeptId = deptId;
   const dept = state.departments.find(d => d.id === deptId);
-  
+  if (!dept) return;
+
   // Update Dropdown Text
-  document.getElementById('activeDeptText').textContent = `${dept.icon} ${dept.name}`;
+  document.getElementById('activeDeptText').textContent = `${dept.name}`;
   
-  // Update UI components affected by department change
-  updateSidebarAccountsList();
-  
-  // Clear composer platform selections since available accounts changed
+  // Clear composer platform selections
   state.selectedPlatforms = [];
-  renderComposerPlatforms();
   
-  // Re-render active tab
-  renderActiveTab();
+  // Render views
+  await renderActiveTab();
   
   showToast(`Switched workspace to ${dept.name}`, 'success');
 }
@@ -217,19 +188,15 @@ function selectMediaPreset(url, element) {
     `;
   }
 
-  // Update preview active tab
-  const activePreviewPlat = document.querySelector('.preview-tab-btn.active').getAttribute('data-preview-platform');
-  updatePreviewFrame(activePreviewPlat);
+  updateComposerPreviews();
 }
 
 // Updates sidebar list of active/inactive platforms
 function updateSidebarAccountsList() {
   const list = document.getElementById('sidebarAccountsList');
   list.innerHTML = '';
-
-  const deptAccounts = state.accounts.filter(a => a.departmentId === state.activeDeptId);
   
-  deptAccounts.forEach(acc => {
+  state.accounts.forEach(acc => {
     const item = document.createElement('div');
     item.className = 'account-status-item';
     
@@ -249,9 +216,7 @@ function renderComposerPlatforms() {
   const container = document.getElementById('composerPlatformGrid');
   container.innerHTML = '';
 
-  const deptAccounts = state.accounts.filter(a => a.departmentId === state.activeDeptId);
-
-  deptAccounts.forEach(acc => {
+  state.accounts.forEach(acc => {
     const btn = document.createElement('button');
     btn.className = `platform-btn ${state.selectedPlatforms.includes(acc.platform) ? 'active' : ''} ${acc.platform}`;
     if (!acc.connected) {
@@ -279,7 +244,6 @@ function renderComposerPlatforms() {
     btn.addEventListener('click', () => {
       if (!acc.connected) {
         showToast(`Please connect the ${acc.platform} channel first!`, 'error');
-        // Redirect to settings
         switchTab('settings');
         return;
       }
@@ -299,17 +263,11 @@ function toggleComposerPlatform(platform) {
   }
   
   renderComposerPlatforms();
-  
-  // Also adjust previews
   updateComposerPreviews();
 }
 
 function updateComposerPreviews() {
-  const text = document.getElementById('postText').value;
-  const mediaUrl = state.selectedMediaUrl;
-  const deptAccounts = state.accounts.filter(a => a.departmentId === state.activeDeptId);
-
-  // Update tabs indicators in previews wrapper
+  // Adjust preview select tab buttons
   const previewTabBtns = document.querySelectorAll('.preview-tab-btn');
   previewTabBtns.forEach(btn => {
     const plat = btn.getAttribute('data-preview-platform');
@@ -322,7 +280,6 @@ function updateComposerPreviews() {
     }
   });
 
-  // Render the current active preview
   const activePreviewPlat = document.querySelector('.preview-tab-btn.active').getAttribute('data-preview-platform');
   updatePreviewFrame(activePreviewPlat);
 }
@@ -330,16 +287,13 @@ function updateComposerPreviews() {
 function updatePreviewFrame(platform) {
   const text = document.getElementById('postText').value;
   const mediaUrl = state.selectedMediaUrl;
-  const deptAccounts = state.accounts.filter(a => a.departmentId === state.activeDeptId);
-  
-  updatePlatformPreview(platform, text, mediaUrl, deptAccounts);
+  updatePlatformPreview(platform, text, mediaUrl, state.accounts);
 }
 
-// Switch navigation tabs
+// Switch tabs
 function switchTab(tabId) {
   state.activeTab = tabId;
   
-  // Style sidebar
   const navItems = document.querySelectorAll('.nav-item');
   navItems.forEach(item => {
     if (item.getAttribute('data-tab') === tabId) {
@@ -349,7 +303,6 @@ function switchTab(tabId) {
     }
   });
 
-  // Show panel
   const panels = document.querySelectorAll('.tab-panel');
   panels.forEach(panel => {
     if (panel.getAttribute('id') === `tab-${tabId}`) {
@@ -359,7 +312,6 @@ function switchTab(tabId) {
     }
   });
 
-  // Adjust headings
   const heading = document.getElementById('pageHeading');
   const desc = document.getElementById('pageDescription');
   
@@ -374,21 +326,31 @@ function switchTab(tabId) {
     desc.textContent = "Review engagement and reach performance logs by department.";
   } else if (tabId === 'settings') {
     heading.textContent = "Connected Channels";
-    desc.textContent = "Authorize API bindings and check local safety buffer configurations.";
+    desc.textContent = "Configure user accounts and check local safety buffer configurations.";
   }
 
   renderActiveTab();
 }
 
-function renderActiveTab() {
+async function renderActiveTab() {
+  if (!state.currentUser) return;
+  
+  // 1. Fetch department specific channels first
+  state.accounts = await request(`/api/accounts?departmentId=${state.activeDeptId}`);
+  updateSidebarAccountsList();
+
   if (state.activeTab === 'composer') {
     renderComposerPlatforms();
-    updateSidebarAccountsList();
     updateComposerPreviews();
+    
+    // Fetch posts for active department
+    state.posts = await request(`/api/posts?departmentId=${state.activeDeptId}`);
     renderQueue();
   } else if (state.activeTab === 'calendar') {
+    state.posts = await request(`/api/posts?departmentId=${state.activeDeptId}`);
     renderCalendarView();
   } else if (state.activeTab === 'analytics') {
+    state.analytics = await request(`/api/analytics/${state.activeDeptId}`);
     renderAnalyticsView();
   } else if (state.activeTab === 'settings') {
     renderSettingsView();
@@ -397,7 +359,6 @@ function renderActiveTab() {
 
 // --- RENDER IMPLEMENTATIONS ---
 
-// Render queue list in composer view
 function renderQueue() {
   renderPostQueue(
     'postItemsContainer', 
@@ -413,12 +374,11 @@ function renderQueue() {
   );
 }
 
-// Render Content Calendar view
 function renderCalendarView() {
   renderCalendar(
     'calendarCellsContainer',
     state.currentCalendarDate,
-    state.posts.filter(p => p.departmentId === state.activeDeptId),
+    state.posts,
     {
       onPostDropped: (postId, targetDateIso) => reschedulePost(postId, targetDateIso),
       onPostClicked: (post) => loadPostIntoComposer(post)
@@ -426,30 +386,21 @@ function renderCalendarView() {
   );
 }
 
-// Render Analytics graphs
 function renderAnalyticsView() {
-  const deptData = state.analytics[state.activeDeptId] || {
-    overview: { impressions: 0, engagementRate: 0, clicks: 0, followersAdded: 0 },
-    platforms: {},
-    history: []
-  };
-  
+  if (!state.analytics) return;
   renderAnalytics(
     'analyticsOverviewGrid',
     'chartBarsRow',
     'platformBreakdownList',
-    deptData
+    state.analytics
   );
 }
 
-// Render Settings screen
 function renderSettingsView() {
   const container = document.getElementById('settingsAccountsGrid');
   container.innerHTML = '';
 
-  const deptAccounts = state.accounts.filter(a => a.departmentId === state.activeDeptId);
-
-  deptAccounts.forEach(acc => {
+  state.accounts.forEach(acc => {
     const card = document.createElement('div');
     card.className = 'connection-card';
     
@@ -494,16 +445,21 @@ function renderSettingsView() {
   }
 }
 
-function renderUsersList() {
+async function renderUsersList() {
   const container = document.getElementById('usersListContainer');
   container.innerHTML = '';
+
+  try {
+    state.users = await request('/api/users');
+  } catch (e) {
+    return;
+  }
 
   state.users.forEach(user => {
     const card = document.createElement('div');
     card.className = 'connection-card';
     card.style.padding = '12px 16px';
     
-    // Convert allowedDepts to names
     const deptNames = user.allowedDepts.map(id => {
       const dept = state.departments.find(d => d.id === id);
       return dept ? dept.name.split(' ')[0] : id;
@@ -552,22 +508,23 @@ function renderWorkspaceCheckboxes() {
 
     label.innerHTML = `
       <input type="checkbox" name="allowedWorkspace" value="${dept.id}" checked style="accent-color:var(--orange);">
-      <span>${dept.icon} ${dept.name.split(' ')[0]}</span>
+      <span>${dept.name.split(' ')[0]}</span>
     `;
     container.appendChild(label);
   });
 }
 
-function deleteUser(username) {
+async function deleteUser(username) {
   if (confirm(`Are you sure you want to delete the user profile for "${username}"?`)) {
-    state.users = state.users.filter(u => u.username !== username);
-    saveUsersToLocalStorage();
-    renderUsersList();
-    showToast(`User profile "${username}" deleted.`, 'success');
+    try {
+      await request(`/api/users/${username}`, 'DELETE');
+      showToast(`User profile "${username}" deleted.`, 'success');
+      await renderUsersList();
+    } catch (e) {}
   }
 }
 
-function createNewUserProfile() {
+async function createNewUserProfile() {
   const usernameInput = document.getElementById('newUsername');
   const passwordInput = document.getElementById('newPassword');
   const roleInput = document.getElementById('newUserRole');
@@ -576,17 +533,11 @@ function createNewUserProfile() {
   const password = passwordInput.value.trim();
   const role = roleInput.value;
 
-  // Selected workspaces checkboxes
   const checkboxes = document.querySelectorAll('input[name="allowedWorkspace"]:checked');
   const allowedDepts = Array.from(checkboxes).map(cb => cb.value);
 
-  // Validation
   if (!username || !password) {
     showToast('Please fill in username and password!', 'error');
-    return;
-  }
-  if (state.users.some(u => u.username === username)) {
-    showToast('Username already exists!', 'error');
     return;
   }
   if (allowedDepts.length === 0) {
@@ -594,28 +545,20 @@ function createNewUserProfile() {
     return;
   }
 
-  const newUser = {
-    username,
-    password,
-    role: role === 'administrator' ? 'administrator' : 'manager',
-    allowedDepts
-  };
-
-  state.users.push(newUser);
-  saveUsersToLocalStorage();
-  
-  // Reset form
-  usernameInput.value = '';
-  passwordInput.value = '';
-  
-  // Re-render
-  renderUsersList();
-  showToast(`Successfully created user "${username}"!`, 'success');
+  try {
+    await request('/api/users', 'POST', { username, password, role, allowedDepts });
+    
+    usernameInput.value = '';
+    passwordInput.value = '';
+    
+    await renderUsersList();
+    showToast(`Successfully created user "${username}"!`, 'success');
+  } catch (e) {}
 }
 
 // --- SUBMIT WORKFLOWS ---
 
-function submitPost(status) {
+async function submitPost(status) {
   const textVal = document.getElementById('postText').value.trim();
   const scheduleToggled = document.getElementById('scheduleToggle').checked;
   const dateVal = document.getElementById('postDate').value;
@@ -652,53 +595,39 @@ function submitPost(status) {
     }
   }
 
-  if (state.editingPostId) {
-    // Modify existing post
-    const postIndex = state.posts.findIndex(p => p.id === state.editingPostId);
-    if (postIndex > -1) {
-      state.posts[postIndex] = {
-        ...state.posts[postIndex],
-        platforms: [...state.selectedPlatforms],
-        content: textVal,
-        mediaUrl: state.selectedMediaUrl,
-        mediaType: state.selectedMediaUrl ? 'image' : 'none',
-        status: finalStatus,
-        scheduledDate: scheduledDate,
-        publishedAt: finalStatus === 'published' ? new Date().toISOString() : null
-      };
-      
-      showToast(`Post updated successfully as ${finalStatus}`, 'success');
+  const postData = {
+    id: state.editingPostId || 'post-' + Date.now(),
+    departmentId: state.activeDeptId,
+    platforms: [...state.selectedPlatforms],
+    content: textVal,
+    mediaUrl: state.selectedMediaUrl,
+    mediaType: state.selectedMediaUrl ? 'image' : 'none',
+    status: finalStatus,
+    scheduledDate: scheduledDate || null,
+    createdAt: new Date().toISOString(),
+    publishedAt: finalStatus === 'published' ? new Date().toISOString() : null,
+    metrics: finalStatus === 'published' ? {
+      impressions: Math.floor(Math.random() * 5000) + 500,
+      engagements: Math.floor(Math.random() * 800) + 50,
+      clicks: Math.floor(Math.random() * 200) + 10,
+      shares: Math.floor(Math.random() * 40)
+    } : null
+  };
+
+  try {
+    if (state.editingPostId) {
+      await request(`/api/posts/${state.editingPostId}`, 'PUT', postData);
+      showToast('Post updated successfully', 'success');
       state.editingPostId = null;
       document.getElementById('publishSubmitBtn').textContent = 'Publish Now';
+    } else {
+      await request('/api/posts', 'POST', postData);
+      showToast('Post successfully saved/queued', 'success');
     }
-  } else {
-    // Create new post
-    const newPost = {
-      id: 'post-' + Date.now(),
-      departmentId: state.activeDeptId,
-      platforms: [...state.selectedPlatforms],
-      content: textVal,
-      mediaUrl: state.selectedMediaUrl,
-      mediaType: state.selectedMediaUrl ? 'image' : 'none',
-      status: finalStatus,
-      scheduledDate: scheduledDate,
-      createdAt: new Date().toISOString(),
-      publishedAt: finalStatus === 'published' ? new Date().toISOString() : null,
-      metrics: finalStatus === 'published' ? {
-        impressions: Math.floor(Math.random() * 5000) + 500,
-        engagements: Math.floor(Math.random() * 800) + 50,
-        clicks: Math.floor(Math.random() * 200) + 10,
-        shares: Math.floor(Math.random() * 40)
-      } : null
-    };
     
-    state.posts.push(newPost);
-    showToast(`Post successfully queued as ${finalStatus}`, 'success');
-  }
-
-  savePostsToLocalStorage();
-  clearComposer();
-  renderActiveTab();
+    clearComposer();
+    await renderActiveTab();
+  } catch (e) {}
 }
 
 function clearComposer() {
@@ -708,7 +637,6 @@ function clearComposer() {
   state.selectedMediaUrl = '';
   state.editingPostId = null;
 
-  // Reset image presets highlight
   const thumbs = document.querySelectorAll('.media-thumb');
   thumbs.forEach(t => t.classList.remove('selected'));
   document.getElementById('mediaUploadBox').style.borderColor = '';
@@ -718,7 +646,6 @@ function clearComposer() {
     <span class="upload-subtext">Images auto-adjust to platform sizes</span>
   `;
 
-  // Reset toggle
   document.getElementById('scheduleToggle').checked = false;
   document.getElementById('scheduleFieldsRow').style.display = 'none';
   document.getElementById('publishSubmitBtn').textContent = 'Publish Now';
@@ -735,7 +662,6 @@ function loadPostIntoComposer(post) {
   state.selectedPlatforms = [...post.platforms];
   state.selectedMediaUrl = post.mediaUrl || '';
 
-  // Set media box highlight
   const thumbs = document.querySelectorAll('.media-thumb');
   thumbs.forEach(t => {
     if (t.getAttribute('data-url') === post.mediaUrl) {
@@ -760,15 +686,12 @@ function loadPostIntoComposer(post) {
     `;
   }
 
-  // Set schedule toggle
   if (post.status === 'scheduled' && post.scheduledDate) {
     document.getElementById('scheduleToggle').checked = true;
     document.getElementById('scheduleFieldsRow').style.display = 'grid';
     
     const sDate = new Date(post.scheduledDate);
-    // Format YYYY-MM-DD
     const dateStr = sDate.toISOString().split('T')[0];
-    // Format HH:MM
     const timeStr = sDate.toTimeString().split(' ')[0].substring(0, 5);
 
     document.getElementById('postDate').value = dateStr;
@@ -780,7 +703,6 @@ function loadPostIntoComposer(post) {
     document.getElementById('publishSubmitBtn').textContent = 'Publish Changes';
   }
 
-  // Switch to composer tab
   switchTab('composer');
   renderComposerPlatforms();
   updateComposerPreviews();
@@ -788,82 +710,79 @@ function loadPostIntoComposer(post) {
   showToast('Post loaded into Composer.', 'success');
 }
 
-// Publish scheduled/draft post instantly
-function publishPostInstantly(id) {
-  const index = state.posts.findIndex(p => p.id === id);
-  if (index > -1) {
-    state.posts[index].status = 'published';
-    state.posts[index].publishedAt = new Date().toISOString();
-    state.posts[index].metrics = {
+async function publishPostInstantly(id) {
+  try {
+    const post = state.posts.find(p => p.id === id);
+    if (!post) return;
+    
+    const now = new Date().toISOString();
+    const mockMetrics = {
       impressions: Math.floor(Math.random() * 6000) + 1000,
       engagements: Math.floor(Math.random() * 1200) + 100,
       clicks: Math.floor(Math.random() * 300) + 20,
       shares: Math.floor(Math.random() * 60)
     };
 
-    savePostsToLocalStorage();
+    await request(`/api/posts/${id}`, 'PUT', { 
+      status: 'published', 
+      publishedAt: now,
+      metrics: mockMetrics
+    });
+    
     showToast('Post published instantly!', 'success');
-    renderActiveTab();
-  }
+    await renderActiveTab();
+  } catch (e) {}
 }
 
-// Delete post
-function deletePost(id) {
+async function deletePost(id) {
   if (confirm('Are you sure you want to delete this post?')) {
-    state.posts = state.posts.filter(p => p.id !== id);
-    savePostsToLocalStorage();
-    showToast('Post deleted successfully', 'success');
-    renderActiveTab();
+    try {
+      await request(`/api/posts/${id}`, 'DELETE');
+      showToast('Post deleted successfully', 'success');
+      await renderActiveTab();
+    } catch (e) {}
   }
 }
 
-// Reschedule post via Drag & Drop on Calendar
-function reschedulePost(postId, targetDateIso) {
-  const index = state.posts.findIndex(p => p.id === postId);
-  if (index > -1) {
-    const post = state.posts[index];
-    const targetDate = new Date(targetDateIso);
-    
-    // Maintain old time if available
-    if (post.scheduledDate) {
-      const oldDate = new Date(post.scheduledDate);
-      targetDate.setHours(oldDate.getHours());
-      targetDate.setMinutes(oldDate.getMinutes());
-      targetDate.setSeconds(0);
-    } else {
-      // Default to 12:00
-      targetDate.setHours(12);
-      targetDate.setMinutes(0);
-      targetDate.setSeconds(0);
-    }
+async function reschedulePost(postId, targetDateIso) {
+  const post = state.posts.find(p => p.id === postId);
+  if (!post) return;
 
-    if (targetDate <= new Date()) {
-      showToast('Cannot reschedule post to a past date!', 'error');
-      return;
-    }
+  const targetDate = new Date(targetDateIso);
+  
+  if (post.scheduledDate) {
+    const oldDate = new Date(post.scheduledDate);
+    targetDate.setHours(oldDate.getHours());
+    targetDate.setMinutes(oldDate.getMinutes());
+    targetDate.setSeconds(0);
+  } else {
+    targetDate.setHours(12);
+    targetDate.setMinutes(0);
+    targetDate.setSeconds(0);
+  }
 
-    state.posts[index].scheduledDate = targetDate.toISOString();
-    savePostsToLocalStorage();
-    
+  if (targetDate <= new Date()) {
+    showToast('Cannot reschedule post to a past date!', 'error');
+    return;
+  }
+
+  try {
+    await request(`/api/posts/${postId}`, 'PUT', { scheduledDate: targetDate.toISOString() });
     const formattedDate = targetDate.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     showToast(`Post rescheduled to ${formattedDate}`, 'success');
-    
-    renderCalendarView();
-  }
+    await renderActiveTab();
+  } catch (e) {}
 }
 
 // --- ACCOUNT INTEGRATIONS WORKFLOW ---
 
-function disconnectAccount(accountId) {
-  if (confirm('Are you sure you want to disconnect this platform integration? You will not be able to schedule posts to it until reconnected.')) {
-    const index = state.accounts.findIndex(a => a.id === accountId);
-    if (index > -1) {
-      state.accounts[index].connected = false;
-      saveAccountsToLocalStorage();
-      updateSidebarAccountsList();
-      renderSettingsView();
+async function disconnectAccount(accountId) {
+  if (confirm('Are you sure you want to disconnect this platform integration?')) {
+    try {
+      await request(`/api/accounts/${accountId}/disconnect`, 'POST');
       showToast('Channel disconnected successfully.', 'success');
-    }
+      await renderActiveTab();
+    } catch (e) {}
   }
 }
 
@@ -873,12 +792,8 @@ function openOAuthModal(account) {
   tempOAuthAccount = account;
   const overlay = document.getElementById('oauthModalOverlay');
   
-  // Set platform-specific values
   document.getElementById('oauthProviderName').textContent = `${account.platform.charAt(0).toUpperCase() + account.platform.slice(1)} Connection`;
-  
-  // Set user profile details based on department
-  const initialsText = account.avatar;
-  document.getElementById('oauthUserInitials').textContent = initialsText;
+  document.getElementById('oauthUserInitials').textContent = account.avatar;
   
   overlay.classList.add('active');
 }
@@ -888,75 +803,62 @@ function closeOAuthModal() {
   tempOAuthAccount = null;
 }
 
-function approveOAuthConnection() {
+async function approveOAuthConnection() {
   if (tempOAuthAccount) {
-    const index = state.accounts.findIndex(a => a.id === tempOAuthAccount.id);
-    if (index > -1) {
-      state.accounts[index].connected = true;
-      saveAccountsToLocalStorage();
-      updateSidebarAccountsList();
-      renderSettingsView();
+    try {
+      await request(`/api/accounts/${tempOAuthAccount.id}/connect`, 'POST');
       showToast(`Connected ${tempOAuthAccount.name} integration successfully!`, 'success');
-    }
+      await renderActiveTab();
+    } catch (e) {}
   }
   closeOAuthModal();
 }
 
 // --- SECURE AUTHENTICATION WORKFLOWS ---
 
-function restoreSession() {
-  const session = sessionStorage.getItem('dome_session');
-  if (session) {
-    state.currentUser = JSON.parse(session);
-    document.getElementById('loginOverlay').classList.remove('active');
-  } else {
-    state.currentUser = null;
-    document.getElementById('loginOverlay').classList.add('active');
-  }
-}
-
-function loginUser() {
-  const userVal = document.getElementById('usernameInput').value.trim().toLowerCase();
+async function loginUser() {
+  const userVal = document.getElementById('usernameInput').value.trim();
   const passVal = document.getElementById('passwordInput').value.trim();
 
-  const user = state.users.find(u => u.username === userVal && u.password === passVal);
-  if (user) {
+  try {
+    const user = await request('/api/auth/login', 'POST', { username: userVal, password: passVal });
     state.currentUser = user;
-    sessionStorage.setItem('dome_session', JSON.stringify(user));
     
-    // Reset login form fields
     document.getElementById('usernameInput').value = '';
     document.getElementById('passwordInput').value = '';
-    
-    // Hide overlay
     document.getElementById('loginOverlay').classList.remove('active');
     
-    // Update default department based on roles permissions
+    // Set active workspace to allowed one
     state.activeDeptId = user.allowedDepts[0];
     
+    // Load departments Allowed
+    state.departments = await request('/api/departments');
+    
     initUI();
-    updateSidebarAccountsList();
-    renderActiveTab();
+    await selectDepartment(state.activeDeptId);
     
     showToast(`Logged in successfully as ${user.username}`, 'success');
-  } else {
-    showToast('Invalid username or password!', 'error');
-  }
+  } catch (e) {}
 }
 
-function logoutUser() {
-  sessionStorage.removeItem('dome_session');
+async function logoutUser(notifyServer = true) {
+  if (notifyServer) {
+    try {
+      await request('/api/auth/logout', 'POST');
+    } catch (e) {}
+  }
+  
   state.currentUser = null;
   clearComposer();
+  showLoginOverlay();
   
-  // Show login screen
-  document.getElementById('loginOverlay').classList.add('active');
-  showToast('Logged out securely.', 'success');
+  if (notifyServer) {
+    showToast('Logged out securely.', 'success');
+  }
 }
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
-  // Department dropdown toggle
   const deptBtn = document.getElementById('activeDeptBtn');
   const deptList = document.getElementById('deptDropdownList');
   
@@ -969,7 +871,6 @@ function setupEventListeners() {
     deptList.classList.remove('active');
   });
 
-  // Tab switcher buttons
   const navButtons = document.querySelectorAll('.nav-menu .nav-item');
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -978,7 +879,6 @@ function setupEventListeners() {
     });
   });
 
-  // Textarea content typing
   const text = document.getElementById('postText');
   text.addEventListener('input', () => {
     const count = text.value.length;
@@ -986,7 +886,6 @@ function setupEventListeners() {
     updateComposerPreviews();
   });
 
-  // Emoji button appends emoji
   const emojis = ['🌟', '✨', '💪', '🏋️‍♂️', '🍝', '🍹', '🏆', '💼', '📅', '📣', '🔥', '📈'];
   document.getElementById('emojiBtn').addEventListener('click', () => {
     const randEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -995,12 +894,9 @@ function setupEventListeners() {
     text.value = text.value.substring(0, start) + randEmoji + text.value.substring(end);
     text.focus();
     text.selectionStart = text.selectionEnd = start + randEmoji.length;
-    
-    // Trigger input update
     text.dispatchEvent(new Event('input'));
   });
 
-  // Schedule slider toggles visibility
   const schedToggle = document.getElementById('scheduleToggle');
   const schedFields = document.getElementById('scheduleFieldsRow');
   schedToggle.addEventListener('change', () => {
@@ -1013,11 +909,9 @@ function setupEventListeners() {
     }
   });
 
-  // Action buttons
   document.getElementById('saveDraftBtn').addEventListener('click', () => submitPost('draft'));
   document.getElementById('publishSubmitBtn').addEventListener('click', () => submitPost('published'));
 
-  // Queue List Filter Buttons
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1028,7 +922,6 @@ function setupEventListeners() {
     });
   });
 
-  // Calendar month navigation
   document.getElementById('prevMonthBtn').addEventListener('click', () => {
     state.currentCalendarDate.setMonth(state.currentCalendarDate.getMonth() - 1);
     renderCalendarView();
@@ -1039,14 +932,12 @@ function setupEventListeners() {
     renderCalendarView();
   });
 
-  // Preview tab selectors (top right of preview frame)
   const prevTabs = document.querySelectorAll('.preview-tab-btn');
   prevTabs.forEach(btn => {
     btn.addEventListener('click', () => {
       prevTabs.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Hide all preview frames, show active one
       const platform = btn.getAttribute('data-preview-platform');
       const frames = document.querySelectorAll('.preview-frame');
       frames.forEach(frame => {
@@ -1061,19 +952,16 @@ function setupEventListeners() {
     });
   });
 
-  // Connect/Disconnect modal listeners
   document.getElementById('oauthCloseBtn').addEventListener('click', closeOAuthModal);
   document.getElementById('oauthCancelBtn').addEventListener('click', closeOAuthModal);
   document.getElementById('oauthApproveBtn').addEventListener('click', approveOAuthConnection);
 
-  // Authentication listeners
   document.getElementById('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     loginUser();
   });
-  document.getElementById('logoutBtn').addEventListener('click', logoutUser);
+  document.getElementById('logoutBtn').addEventListener('click', () => logoutUser());
 
-  // User Management listeners
   const createUserForm = document.getElementById('createUserForm');
   if (createUserForm) {
     createUserForm.addEventListener('submit', (e) => {
@@ -1097,56 +985,32 @@ function showToast(message, type = 'success') {
 
   container.appendChild(toast);
 
-  // Auto remove
   setTimeout(() => {
     toast.style.animation = 'slideIn 0.3s ease reverse forwards';
     setTimeout(() => toast.remove(), 300);
   }, 4000);
 }
 
-// --- BACKGROUND SCHEDULER LOOP (SIMULATES A GATEWAY SERVER CRON) ---
-function startSchedulerLoop() {
-  setInterval(() => {
-    const now = new Date();
-    let hasUpdates = false;
-
-    state.posts.forEach((post, index) => {
-      if (post.status === 'scheduled' && post.scheduledDate) {
-        const schedDate = new Date(post.scheduledDate);
-        
-        // If scheduled date has passed
-        if (schedDate <= now) {
-          state.posts[index].status = 'published';
-          state.posts[index].publishedAt = now.toISOString();
-          
-          // Generate simulated statistics
-          state.posts[index].metrics = {
-            impressions: Math.floor(Math.random() * 5500) + 1200,
-            engagements: Math.floor(Math.random() * 950) + 100,
-            clicks: Math.floor(Math.random() * 250) + 20,
-            shares: Math.floor(Math.random() * 45)
-          };
-          
-          hasUpdates = true;
-          
-          // Toast alerting which channels were published
-          const channels = post.platforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
-          showToast(`Published: Staggered write complete to [${channels}] for ${state.departments.find(d => d.id === post.departmentId).name}`, 'success');
+// --- CLIENT-SIDE SCHEDULER POLLING ---
+// Since background publishing happens on the backend now, the client simply polls
+// every 30 seconds to refresh the active lists so the calendar/queue updates dynamically.
+function startWebSchedulerPolling() {
+  setInterval(async () => {
+    if (state.currentUser && state.activeTab !== 'settings') {
+      try {
+        if (state.activeTab === 'composer') {
+          state.posts = await request(`/api/posts?departmentId=${state.activeDeptId}`);
+          renderQueue();
+        } else if (state.activeTab === 'calendar') {
+          state.posts = await request(`/api/posts?departmentId=${state.activeDeptId}`);
+          renderCalendarView();
+        } else if (state.activeTab === 'analytics') {
+          state.analytics = await request(`/api/analytics/${state.activeDeptId}`);
+          renderAnalyticsView();
         }
-      }
-    });
-
-    if (hasUpdates) {
-      savePostsToLocalStorage();
-      
-      // Update UI if in a view displaying posts
-      if (state.activeTab === 'composer') {
-        renderQueue();
-      } else if (state.activeTab === 'calendar') {
-        renderCalendarView();
-      } else if (state.activeTab === 'analytics') {
-        renderAnalyticsView();
+      } catch (err) {
+        console.error('Auto-refresh failed:', err);
       }
     }
-  }, 10000); // Check every 10 seconds (corresponds to system timer stats in Settings)
+  }, 30000);
 }

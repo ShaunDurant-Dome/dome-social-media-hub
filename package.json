@@ -2,12 +2,19 @@
   "name": "dome-social-media-hub",
   "version": "1.0.0",
   "description": "Multi-channel social media scheduler and manager for The Dome",
-  "main": "app.js",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "dev": "npx http-server -p 8080"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "dependencies": {},
-  "devDependencies": {
-    "http-server": "^14.1.1"
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.11.3"
   }
 }

@@ -1,12 +1,12 @@
 // Mock Data for Dome Social Media Hub (Customized Departments with All Platform Options)
 
 export const DEPARTMENTS = [
-  { id: 'namibia', name: 'Dome Namibia', icon: '🇳🇦' },
-  { id: 'gym', name: 'Dome Gym', icon: '💪' },
-  { id: 'cycling', name: 'Dome Indoor Cycling Studio', icon: '🚴' },
-  { id: 'hotel', name: 'Dome Hotel', icon: '🏨' },
-  { id: 'kinderzone', name: 'Kinderzone', icon: '🎈' },
-  { id: 'pitstop', name: 'Pitstop Sports Lounge', icon: '🏁' }
+  { id: 'namibia', name: 'Dome Namibia', icon: '' },
+  { id: 'gym', name: 'Dome Gym', icon: '' },
+  { id: 'cycling', name: 'Dome Indoor Cycling Studio', icon: '' },
+  { id: 'hotel', name: 'Dome Hotel', icon: '' },
+  { id: 'kinderzone', name: 'Kinderzone', icon: '' },
+  { id: 'pitstop', name: 'Pitstop Sports Lounge', icon: '' }
 ];
 
 export const SOCIAL_ACCOUNTS = [
