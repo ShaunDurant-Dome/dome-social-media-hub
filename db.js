@@ -22,10 +22,12 @@ if (isPostgres) {
   console.log('DB: Using Local JSON File Mode');
 }
 
-// Local Database File Paths
-const USERS_FILE = path.join(process.cwd(), 'db_users.json');
-const ACCOUNTS_FILE = path.join(process.cwd(), 'db_accounts.json');
-const POSTS_FILE = path.join(process.cwd(), 'db_posts.json');
+// Local Database File Paths (Auto-detects Render Persistent Disk mount directory)
+const dataDir = fs.existsSync('/data') ? '/data' : process.cwd();
+
+const USERS_FILE = path.join(dataDir, 'db_users.json');
+const ACCOUNTS_FILE = path.join(dataDir, 'db_accounts.json');
+const POSTS_FILE = path.join(dataDir, 'db_posts.json');
 
 // Default initial users
 const DEFAULT_USERS = [
