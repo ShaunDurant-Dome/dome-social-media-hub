@@ -341,6 +341,30 @@ export async function getPosts(departmentId, status = 'all') {
   }
 }
 
+export async function getPost(id) {
+  if (isPostgres) {
+    const res = await pool.query('SELECT id, department_id, platforms, content, media_url, media_type, status, scheduled_date, created_at, published_at, metrics FROM posts WHERE id = $1', [id]);
+    if (res.rows.length === 0) return null;
+    const row = res.rows[0];
+    return {
+      id: row.id,
+      departmentId: row.department_id,
+      platforms: row.platforms,
+      content: row.content,
+      mediaUrl: row.media_url,
+      mediaType: row.media_type,
+      status: row.status,
+      scheduledDate: row.scheduled_date ? row.scheduled_date.toISOString() : null,
+      createdAt: row.created_at.toISOString(),
+      publishedAt: row.published_at ? row.published_at.toISOString() : null,
+      metrics: row.metrics
+    };
+  } else {
+    const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
+    return posts.find(p => p.id === id) || null;
+  }
+}
+
 export async function savePost(post) {
   if (isPostgres) {
     await pool.query(

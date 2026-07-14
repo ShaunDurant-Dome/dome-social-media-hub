@@ -24,11 +24,12 @@ import {
   deletePost,
   getGalleryPresets,
   addGalleryPreset,
-  deleteGalleryPreset
+  deleteGalleryPreset,
+  getPost
 } from './db.js';
 
 import { DEPARTMENTS, ANALYTICS_DATA } from './mockData.js';
-import './scheduler.js'; // Start background scheduler cron immediately
+import { publishPost } from './scheduler.js'; // Start background scheduler and import publisher
 
 // Load environment config
 dotenv.config();
@@ -466,6 +467,11 @@ app.post('/api/posts', authenticateToken, async (req, res) => {
 
   try {
     await savePost(post);
+    if (post.status === 'published') {
+      publishPost(post).catch(err => {
+        console.error(`Instant Publish Error for post ${post.id}:`, err);
+      });
+    }
     res.status(201).json({ success: true, message: 'Post successfully saved' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save post' });
@@ -479,6 +485,14 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
 
   try {
     await updatePost(id, updates);
+    if (updates.status === 'published') {
+      const fullPost = await getPost(id);
+      if (fullPost) {
+        publishPost(fullPost).catch(err => {
+          console.error(`Instant Publish on Edit Error for post ${id}:`, err);
+        });
+      }
+    }
     res.json({ success: true, message: 'Post updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update post' });
