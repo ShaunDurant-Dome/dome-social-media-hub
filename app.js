@@ -152,7 +152,13 @@ function selectMediaPreset(url, element) {
     state.selectedMediaUrl = url;
     const thumbs = document.querySelectorAll('.media-thumb');
     thumbs.forEach(t => t.classList.remove('selected'));
-    element.classList.add('selected');
+    if (element) {
+      element.classList.add('selected');
+    }
+    
+    // Disable file input pointer-events so click goes to Remove Image button
+    const fileInput = document.getElementById('mediaFileInput');
+    if (fileInput) fileInput.style.pointerEvents = 'none';
     
     document.getElementById('mediaUploadBox').style.borderColor = 'var(--orange)';
     document.getElementById('mediaUploadBox').innerHTML = `
@@ -174,10 +180,15 @@ function clearMedia() {
   state.selectedMediaUrl = '';
   const thumbs = document.querySelectorAll('.media-thumb');
   thumbs.forEach(t => t.classList.remove('selected'));
+  
+  // Re-enable file input click handler
+  const fileInput = document.getElementById('mediaFileInput');
+  if (fileInput) fileInput.style.pointerEvents = 'auto';
+  
   document.getElementById('mediaUploadBox').style.borderColor = '';
   document.getElementById('mediaUploadBox').innerHTML = `
     <span class="upload-icon">📸</span>
-    <span class="upload-text">Click to select an image from the gallery below</span>
+    <span class="upload-text" id="uploadBoxText">Click to upload an image from your PC or select from below</span>
     <span class="upload-subtext">Images auto-adjust to platform sizes</span>
   `;
   updateComposerPreviews();
