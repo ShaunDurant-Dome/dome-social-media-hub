@@ -94,6 +94,8 @@ export async function initDb() {
         );
       `);
 
+      await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS error_details TEXT;');
+
       await pool.query(`
         CREATE TABLE IF NOT EXISTS gallery_presets (
           id VARCHAR(50) PRIMARY KEY,
@@ -309,7 +311,7 @@ export async function updateAccountConnection(id, connected, accessToken = null,
 
 export async function getPosts(departmentId, status = 'all') {
   if (isPostgres) {
-    let query = 'SELECT id, department_id, platforms, content, media_url, media_type, status, scheduled_date, created_at, published_at, metrics FROM posts WHERE department_id = $1';
+    let query = 'SELECT id, department_id, platforms, content, media_url, media_type, status, scheduled_date, created_at, published_at, metrics, error_details FROM posts WHERE department_id = $1';
     const params = [departmentId];
     
     if (status !== 'all') {
@@ -329,7 +331,8 @@ export async function getPosts(departmentId, status = 'all') {
       scheduledDate: row.scheduled_date ? row.scheduled_date.toISOString() : null,
       createdAt: row.created_at.toISOString(),
       publishedAt: row.published_at ? row.published_at.toISOString() : null,
-      metrics: row.metrics
+      metrics: row.metrics,
+      errorDetails: row.error_details
     }));
   } else {
     const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
@@ -343,7 +346,7 @@ export async function getPosts(departmentId, status = 'all') {
 
 export async function getPost(id) {
   if (isPostgres) {
-    const res = await pool.query('SELECT id, department_id, platforms, content, media_url, media_type, status, scheduled_date, created_at, published_at, metrics FROM posts WHERE id = $1', [id]);
+    const res = await pool.query('SELECT id, department_id, platforms, content, media_url, media_type, status, scheduled_date, created_at, published_at, metrics, error_details FROM posts WHERE id = $1', [id]);
     if (res.rows.length === 0) return null;
     const row = res.rows[0];
     return {
@@ -357,7 +360,8 @@ export async function getPost(id) {
       scheduledDate: row.scheduled_date ? row.scheduled_date.toISOString() : null,
       createdAt: row.created_at.toISOString(),
       publishedAt: row.published_at ? row.published_at.toISOString() : null,
-      metrics: row.metrics
+      metrics: row.metrics,
+      errorDetails: row.error_details
     };
   } else {
     const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));

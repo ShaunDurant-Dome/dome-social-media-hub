@@ -520,6 +520,20 @@ export function renderPostQueue(containerId, posts, accounts, activeDeptId, curr
     const badgeSpan = document.createElement('span');
     badgeSpan.className = `status-badge ${post.status}`;
     badgeSpan.textContent = post.status;
+    
+    if (post.status === 'failed' && post.errorDetails) {
+      try {
+        const errorDetails = JSON.parse(post.errorDetails);
+        let errText = 'Publication Errors:';
+        for (const [plat, msg] of Object.entries(errorDetails)) {
+          errText += `\n• ${plat.toUpperCase()}: ${msg}`;
+        }
+        badgeSpan.title = errText;
+        badgeSpan.style.cursor = 'help';
+        badgeSpan.style.textDecoration = 'underline dotted';
+      } catch (e) {}
+    }
+    
     metaCol.appendChild(badgeSpan);
 
     const timeDetail = document.createElement('span');
