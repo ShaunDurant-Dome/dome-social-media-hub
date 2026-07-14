@@ -920,7 +920,6 @@ input:checked + .slider:before {
 
 .fb-media {
   width: 100%;
-  aspect-ratio: 1.77;
   background: #242526;
   overflow: hidden;
   display: flex;
@@ -930,8 +929,9 @@ input:checked + .slider:before {
 
 .fb-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
 }
 
 .fb-actions {
@@ -992,7 +992,6 @@ input:checked + .slider:before {
 
 .ig-media {
   width: 100%;
-  aspect-ratio: 1;
   background: #121212;
   overflow: hidden;
   display: flex;
@@ -1002,8 +1001,9 @@ input:checked + .slider:before {
 
 .ig-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
 }
 
 .ig-icons {
@@ -1080,7 +1080,6 @@ input:checked + .slider:before {
 
 .li-media {
   width: 100%;
-  aspect-ratio: 1.77;
   background: #293138;
   overflow: hidden;
   display: flex;
@@ -1090,8 +1089,9 @@ input:checked + .slider:before {
 
 .li-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
 }
 
 .li-actions {
@@ -1163,7 +1163,6 @@ input:checked + .slider:before {
 
 .go-media {
   width: 100%;
-  aspect-ratio: 1.77;
   background: #f8f9fa;
   border-radius: 8px;
   overflow: hidden;
@@ -1176,8 +1175,9 @@ input:checked + .slider:before {
 
 .go-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
 }
 
 .go-action-btn-mock {
