@@ -1054,6 +1054,55 @@ function setupEventListeners() {
       await renderMediaPresets();
     } catch(err) {}
   });
+
+  // File upload change listener
+  const mediaFileInput = document.getElementById('mediaFileInput');
+  if (mediaFileInput) {
+    mediaFileInput.addEventListener('change', async () => {
+      if (mediaFileInput.files.length === 0) return;
+      const file = mediaFileInput.files[0];
+      
+      const uploadBoxText = document.getElementById('uploadBoxText');
+      const originalText = uploadBoxText ? uploadBoxText.textContent : 'Click to upload an image';
+      if (uploadBoxText) uploadBoxText.textContent = `Uploading ${file.name}...`;
+      showToast(`Uploading ${file.name}...`, 'info');
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (res.status === 401) {
+          logoutUser(false);
+          throw new Error('Session expired. Please log in again.');
+        }
+        
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Upload failed');
+        }
+        
+        showToast('Image uploaded successfully!', 'success');
+        
+        // Select uploaded image in composer
+        selectMediaPreset(data.url, null);
+        
+        // Save to gallery presets automatically so user can reuse it
+        await request('/api/gallery', 'POST', { url: data.url, label: file.name.split('.')[0] });
+        await renderMediaPresets();
+        
+      } catch (err) {
+        showToast(err.message || 'Failed to upload image.', 'error');
+      } finally {
+        if (uploadBoxText) uploadBoxText.textContent = originalText;
+        mediaFileInput.value = ''; // Reset file input
+      }
+    });
+  }
 }
 
 // --- TOAST NOTIFICATIONS ---

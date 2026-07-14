@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import fs from 'fs';
 
 import { 
   initDb, 
@@ -39,6 +41,25 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dome_social_super_secret_secret';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Setup Uploads Directory (Respects Render Persistent Disk)
+const uploadsDir = fs.existsSync('/data') ? '/data/uploads' : path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer Disk Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
+
 // Middlewares
 app.use(express.json());
 app.use(cookieParser());
@@ -52,6 +73,7 @@ await initDb();
 
 // Serve static assets from project root
 app.use(express.static(__dirname));
+app.use('/uploads', express.static(uploadsDir));
 
 // --- AUTH MIDDLEWARE ---
 function authenticateToken(req, res, next) {
@@ -390,6 +412,23 @@ app.delete('/api/gallery/:id', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Gallery preset deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete gallery preset' });
+  }
+});
+
+// Upload Local File Image
+app.post('/api/upload', authenticateToken, upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file uploaded' });
+  }
+  try {
+    // Construct public URL dynamically
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    
+    res.json({ url: imageUrl });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to upload image file' });
   }
 });
 
