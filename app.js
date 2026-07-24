@@ -160,11 +160,16 @@ function selectMediaPreset(url, element) {
     const fileInput = document.getElementById('mediaFileInput');
     if (fileInput) fileInput.style.pointerEvents = 'none';
     
+    const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(url) || url.includes('/video/');
+    const previewTag = isVideo 
+      ? `<video src="${url}" style="height: 60px; border-radius: 6px; object-fit: cover; margin-bottom: 5px; display:block; margin: 0 auto 5px auto;"></video>`
+      : `<img src="${url}" style="height: 60px; border-radius: 6px; object-fit: cover; margin-bottom: 5px; display:block; margin: 0 auto 5px auto;">`;
+
     document.getElementById('mediaUploadBox').style.borderColor = 'var(--orange)';
     document.getElementById('mediaUploadBox').innerHTML = `
-      <img src="${url}" style="height: 60px; border-radius: 6px; object-fit: cover; margin-bottom: 5px; display:block; margin: 0 auto 5px auto;">
-      <span class="upload-text" style="color:var(--orange); display:block; margin-bottom: 8px;">Media attached successfully</span>
-      <button type="button" class="btn btn-secondary" id="removeMediaBtn" style="padding: 4px 10px; font-size: 0.72rem; margin: 0 auto; display: block; border-radius:6px; cursor:pointer;">Remove Image</button>
+      ${previewTag}
+      <span class="upload-text" style="color:var(--orange); display:block; margin-bottom: 8px;">${isVideo ? 'Video' : 'Image'} attached successfully</span>
+      <button type="button" class="btn btn-secondary" id="removeMediaBtn" style="padding: 4px 10px; font-size: 0.72rem; margin: 0 auto; display: block; border-radius:6px; cursor:pointer;">Remove Media</button>
     `;
 
     document.getElementById('removeMediaBtn').addEventListener('click', (e) => {
@@ -187,9 +192,9 @@ function clearMedia() {
   
   document.getElementById('mediaUploadBox').style.borderColor = '';
   document.getElementById('mediaUploadBox').innerHTML = `
-    <span class="upload-icon">📸</span>
-    <span class="upload-text" id="uploadBoxText">Click to upload an image from your PC or select from below</span>
-    <span class="upload-subtext">Images auto-adjust to platform sizes</span>
+    <span class="upload-icon">📸 🎥</span>
+    <span class="upload-text" id="uploadBoxText">Click to upload an image or video from your PC</span>
+    <span class="upload-subtext">Images and videos auto-adjust to platform sizes</span>
   `;
   updateComposerPreviews();
 }

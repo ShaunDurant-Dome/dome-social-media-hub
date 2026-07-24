@@ -20,14 +20,7 @@ export function updatePlatformPreview(platform, text, mediaUrl, accounts) {
       const fbContent = document.getElementById('fbContentText');
       fbContent.innerHTML = formatPostText(displayText);
       
-      const fbMediaContainer = document.getElementById('fbMediaContainer');
-      const fbMediaImg = document.getElementById('fbMediaImg');
-      if (hasMedia) {
-        fbMediaImg.src = mediaUrl;
-        fbMediaContainer.style.display = 'block';
-      } else {
-        fbMediaContainer.style.display = 'none';
-      }
+      renderMediaPreview(document.getElementById('fbMediaContainer'), mediaUrl);
       break;
 
     case 'instagram':
@@ -38,16 +31,7 @@ export function updatePlatformPreview(platform, text, mediaUrl, accounts) {
       const igContent = document.getElementById('igContentText');
       igContent.innerHTML = formatPostText(displayText);
       
-      const igMediaContainer = document.getElementById('igMediaContainer');
-      const igMediaImg = document.getElementById('igMediaImg');
-      if (hasMedia) {
-        igMediaImg.src = mediaUrl;
-        igMediaContainer.style.display = 'block';
-      } else {
-        // Instagram requires media
-        igMediaImg.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80';
-        igMediaContainer.style.display = 'block';
-      }
+      renderMediaPreview(document.getElementById('igMediaContainer'), mediaUrl, 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80');
       break;
 
     case 'linkedin':
@@ -58,14 +42,7 @@ export function updatePlatformPreview(platform, text, mediaUrl, accounts) {
       const liContent = document.getElementById('liContentText');
       liContent.innerHTML = formatPostText(displayText);
       
-      const liMediaContainer = document.getElementById('liMediaContainer');
-      const liMediaImg = document.getElementById('liMediaImg');
-      if (hasMedia) {
-        liMediaImg.src = mediaUrl;
-        liMediaContainer.style.display = 'block';
-      } else {
-        liMediaContainer.style.display = 'none';
-      }
+      renderMediaPreview(document.getElementById('liMediaContainer'), mediaUrl);
       break;
 
     case 'google':
@@ -74,15 +51,25 @@ export function updatePlatformPreview(platform, text, mediaUrl, accounts) {
       const goContent = document.getElementById('goContentText');
       goContent.innerHTML = formatPostText(displayText);
       
-      const goMediaContainer = document.getElementById('goMediaContainer');
-      const goMediaImg = document.getElementById('goMediaImg');
-      if (hasMedia) {
-        goMediaImg.src = mediaUrl;
-        goMediaContainer.style.display = 'block';
-      } else {
-        goMediaContainer.style.display = 'none';
-      }
+      renderMediaPreview(document.getElementById('goMediaContainer'), mediaUrl);
       break;
+  }
+}
+
+function renderMediaPreview(container, mediaUrl, defaultImage = null) {
+  const targetUrl = mediaUrl || defaultImage;
+  if (!container) return;
+  if (!targetUrl) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+
+  const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(targetUrl) || targetUrl.includes('/video/');
+  if (isVideo) {
+    container.innerHTML = `<video src="${targetUrl}" controls autoplay muted loop style="width:100%; max-height:400px; object-fit:contain; border-radius:8px; display:block;"></video>`;
+  } else {
+    container.innerHTML = `<img src="${targetUrl}" style="width:100%; max-height:400px; object-fit:contain; border-radius:8px; display:block;">`;
   }
 }
 

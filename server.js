@@ -416,20 +416,21 @@ app.delete('/api/gallery/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Upload Local File Image
+// Upload Local Media File (Image or Video)
 app.post('/api/upload', authenticateToken, upload.single('image'), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'No image file uploaded' });
+    return res.status(400).json({ error: 'No media file uploaded' });
   }
   try {
     // Construct public URL dynamically
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
-    const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const mediaUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const isVideo = req.file.mimetype.startsWith('video/') || /\.(mp4|mov|webm|avi|mkv)$/i.test(req.file.originalname);
     
-    res.json({ url: imageUrl });
+    res.json({ url: mediaUrl, mediaType: isVideo ? 'video' : 'image' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to upload image file' });
+    res.status(500).json({ error: 'Failed to upload media file' });
   }
 });
 

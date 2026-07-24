@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dome Social Media Hub</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <!-- LOGIN OVERLAY -->
@@ -162,11 +162,11 @@
             <div class="composer-section">
               <h3 class="section-title-sub">3. Attach Media</h3>
               <div class="media-upload-area" style="position: relative;">
-                <input type="file" id="mediaFileInput" accept="image/*" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;">
+                <input type="file" id="mediaFileInput" accept="image/*,video/*,.mp4,.mov,.webm,.avi,.mkv" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2;">
                 <div id="mediaUploadBox" style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
-                  <span class="upload-icon">📸</span>
-                  <span class="upload-text" id="uploadBoxText">Click to upload an image from your PC or select from below</span>
-                  <span class="upload-subtext">Images auto-adjust to platform sizes</span>
+                  <span class="upload-icon">📸 🎥</span>
+                  <span class="upload-text" id="uploadBoxText">Click to upload an image or video from your PC</span>
+                  <span class="upload-subtext">Images and videos auto-adjust to platform sizes</span>
                 </div>
               </div>
               
@@ -587,6 +587,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>
