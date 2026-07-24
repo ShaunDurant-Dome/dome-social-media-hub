@@ -466,13 +466,23 @@ app.post('/api/posts', authenticateToken, async (req, res) => {
   }
 
   try {
-    await savePost(post);
     if (post.status === 'published') {
-      publishPost(post).catch(err => {
-        console.error(`Instant Publish Error for post ${post.id}:`, err);
-      });
+      // First save as draft so record exists in database
+      const targetStatus = post.status;
+      post.status = 'draft';
+      await savePost(post);
+      post.status = targetStatus;
+
+      try {
+        await publishPost(post);
+        res.status(201).json({ success: true, message: 'Post published live successfully!' });
+      } catch (pubErr) {
+        res.status(400).json({ error: `Publication failed: ${pubErr.message}` });
+      }
+    } else {
+      await savePost(post);
+      res.status(201).json({ success: true, message: 'Post successfully saved' });
     }
-    res.status(201).json({ success: true, message: 'Post successfully saved' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save post' });
   }
@@ -488,12 +498,18 @@ app.put('/api/posts/:id', authenticateToken, async (req, res) => {
     if (updates.status === 'published') {
       const fullPost = await getPost(id);
       if (fullPost) {
-        publishPost(fullPost).catch(err => {
-          console.error(`Instant Publish on Edit Error for post ${id}:`, err);
-        });
+        try {
+          await publishPost(fullPost);
+          res.json({ success: true, message: 'Post published live successfully!' });
+        } catch (pubErr) {
+          res.status(400).json({ error: `Publication failed: ${pubErr.message}` });
+        }
+      } else {
+        res.status(404).json({ error: 'Post not found' });
       }
+    } else {
+      res.json({ success: true, message: 'Post updated successfully' });
     }
-    res.json({ success: true, message: 'Post updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update post' });
   }
