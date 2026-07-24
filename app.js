@@ -49,9 +49,21 @@ async function request(url, method = 'GET', data = null) {
       throw new Error('Session expired. Please log in again.');
     }
     
-    const resData = await response.json();
+    const rawText = await response.text();
+    let resData = {};
+    if (rawText) {
+      try {
+        resData = JSON.parse(rawText);
+      } catch (parseErr) {
+        if (!response.ok) {
+          throw new Error(`Server returned HTTP ${response.status} error.`);
+        }
+        throw new Error('Unexpected non-JSON response from server.');
+      }
+    }
+
     if (!response.ok) {
-      throw new Error(resData.error || 'Server request failed');
+      throw new Error(resData.error || `Server request failed (HTTP ${response.status})`);
     }
     
     return resData;

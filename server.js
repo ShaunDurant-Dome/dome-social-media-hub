@@ -543,6 +543,11 @@ app.get('/api/analytics/:deptId', authenticateToken, (req, res) => {
   }
 });
 
+// Explicit 404 handler for missing API endpoints (prevents HTML fallback on API calls)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found` });
+});
+
 // Catch-all route to serve index.html for frontend routing
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
